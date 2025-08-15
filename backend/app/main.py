@@ -1,10 +1,15 @@
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import ORJSONResponse
+from starlette.middleware.gzip import GZipMiddleware
+
 from .config import settings
-from .data_loader import DataStore, _to_6, _to_9
+from .data_loader import DataStore
 
 app = FastAPI(title="LoneStarLedger API", default_response_class=ORJSONResponse)
+
+# Enable gzip to shrink large JSON/GeoJSON responses
+app.add_middleware(GZipMiddleware, minimum_size=1024)
 
 # CORS
 origins = [o.strip() for o in settings.cors_origins.split(",")] if settings.cors_origins else ["*"]
@@ -16,7 +21,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# load data once
+# Load data once on startup
 store = DataStore(settings.data_dir)
 
 @app.get("/health")
