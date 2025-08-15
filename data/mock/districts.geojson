@@ -1,0 +1,40 @@
+{
+  "type": "FeatureCollection",
+  "name": "mock_districts",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "district_id": "001",
+        "name": "Mock ISD"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              -97.8,
+              30.3
+            ],
+            [
+              -97.7,
+              30.3
+            ],
+            [
+              -97.7,
+              30.4
+            ],
+            [
+              -97.8,
+              30.4
+            ],
+            [
+              -97.8,
+              30.3
+            ]
+          ]
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,10 @@
+[
+  {
+    "campus_id": "001-001",
+    "district_id": "001",
+    "name": "Mock Elementary",
+    "on_grade_reading_pct": 58,
+    "on_grade_math_pct": 61,
+    "avg_teacher_salary": 57500
+  }
+]

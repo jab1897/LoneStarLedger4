@@ -1,0 +1,17 @@
+[
+  {
+    "district_id": "001",
+    "name": "Mock ISD",
+    "region": "Region 13",
+    "spending": {
+      "instruction": 12000000,
+      "admin": 2500000,
+      "operations": 4000000,
+      "other": 1500000
+    },
+    "per_pupil_spending": 12500,
+    "per_pupil_debt": 8000,
+    "aggregate_spending": 20000000,
+    "aggregate_debt": 9500000
+  }
+]
