@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://lone-star-ledger4.vercel.app/sitemap.xml
