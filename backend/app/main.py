@@ -1,136 +1,199 @@
 from fastapi import FastAPI, Query, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.middleware.gzip import GZipMiddleware
-from fastapi.responses import JSONResponse
+from typing import List, Optional, Tuple, Dict, Any
 from functools import lru_cache
 import os, json, math
 
-DATA_DIR = os.getenv("DATA_DIR", "data/raw")
-PROC_DIR = "data/processed/geo"
+DATA_DIR = os.environ.get("DATA_DIR", "../data/raw")
+PROC_DIR = os.path.normpath(os.path.join(os.path.dirname(__file__), "..", "..", "data", "processed", "geo"))
+RAW_DIR  = os.path.normpath(os.path.join(os.path.dirname(__file__), "..", "..", "data", "raw"))
 
-app = FastAPI(title="LoneStarLedger API", version="0.4.0")
+app = FastAPI(title="LoneStarLedger API", version="0.2")
+
+# CORS
+cors_origins = os.environ.get("CORS_ORIGINS", "*")
+if cors_origins == "*":
+    allow_origins = ["*"]
+else:
+    allow_origins = [o.strip() for o in cors_origins.split(",") if o.strip()]
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[os.getenv("CORS_ORIGINS", "*")],
+    allow_origins=allow_origins,
+    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
-app.add_middleware(GZipMiddleware, minimum_size=1024)
 
-def _load_json(path: str):
+# --------- lazy loaders ---------
+
+def _load_json(path: str) -> Any:
     with open(path, "r", encoding="utf-8") as f:
         return json.load(f)
 
-def _choose(*paths):
-    for p in paths:
-        if os.path.exists(p):
-            return p
-    return None
+@lru_cache(maxsize=1)
+def load_districts_geo() -> Dict:
+    path = os.path.join(PROC_DIR, "districts.props.geojson")
+    if not os.path.exists(path): raise FileNotFoundError(path)
+    return _load_json(path)
 
 @lru_cache(maxsize=1)
-def _load_campuses_points():
-    src = os.path.join(PROC_DIR, "campuses.points.json")
-    if not os.path.exists(src):
-        return []
-    with open(src, "r", encoding="utf-8") as f:
-        return json.load(f)  # [{lat,lon,campus_9,school_name,district_6}]
+def load_campuses_geo() -> Dict:
+    path = os.path.join(PROC_DIR, "campuses.props.geojson")
+    if not os.path.exists(path): raise FileNotFoundError(path)
+    return _load_json(path)
+
+@lru_cache(maxsize=1)
+def load_campus_points() -> List[Dict[str, Any]]:
+    """
+    Lightweight points-only dataset produced in Phase 8 (campuses.points.json).
+    Each row: {"lat": float, "lon": float, "district_6": str, "campus_9": str, "name": str}
+    """
+    path = os.path.join(PROC_DIR, "campuses.points.json")
+    if not os.path.exists(path):
+        # graceful fallback from polygons if needed
+        geo = load_campuses_geo()
+        pts = []
+        for ft in geo.get("features", []):
+            props = ft.get("properties", {})
+            bbox = ft.get("bbox")
+            if bbox and len(bbox) >= 4:
+                west, south, east, north = bbox[:4]
+                lon = (west + east) / 2.0
+                lat = (south + north) / 2.0
+            else:
+                lon, lat = -99.0, 31.0
+            pts.append({
+                "lat": lat, "lon": lon,
+                "district_6": str(props.get("district_6", "")),
+                "campus_9": str(props.get("campus_9", "")),
+                "name": props.get("school_name") or props.get("name") or "Campus"
+            })
+        return pts
+    return _load_json(path)
+
+# --------- simple tabulars (placeholder; derived from props) ---------
+
+def _district_rows() -> List[Dict[str, Any]]:
+    feats = load_districts_geo().get("features", [])
+    rows = []
+    for ft in feats:
+        p = ft.get("properties", {})
+        rows.append({
+            "district_6": p.get("district_6"),
+            "district_name": p.get("name") or p.get("DISTNAME") or "District",
+            "enrollment": None,
+            "total_spend": None,
+            "per_pupil_spend": None
+        })
+    return rows
+
+def _campus_rows(limit: int = 1000) -> List[Dict[str, Any]]:
+    feats = load_campuses_geo().get("features", [])
+    out = []
+    for ft in feats[:limit]:
+        p = ft.get("properties", {})
+        out.append({
+            "campus_9": p.get("campus_9"),
+            "campus_name": p.get("school_name") or p.get("name") or "School",
+            "district_6": p.get("district_6"),
+            "reading_on_grade": None,
+            "math_on_grade": None
+        })
+    return out
+
+# --------- endpoints ---------
 
 @app.get("/health")
 def health():
     return {"ok": True}
 
+@app.get("/summary")
+def summary():
+    d = _district_rows()
+    return {
+        "district_count": len(d),
+        "total_enrollment": None,
+        "total_spend": None,
+        "avg_per_pupil_spend": None,
+        "debt_total": None,
+    }
+
+@app.get("/districts")
+def list_districts(q: Optional[str] = None, limit: int = 50, offset: int = 0):
+    rows = _district_rows()
+    if q:
+        ql = q.lower()
+        rows = [r for r in rows if ql in (r["district_name"] or "").lower()]
+    return {"items": rows[offset: offset+limit], "total": len(rows)}
+
+@app.get("/schools")
+def list_schools(q: Optional[str] = None, limit: int = 50, offset: int = 0):
+    rows = _campus_rows(limit=100000)
+    if q:
+        ql = q.lower()
+        rows = [r for r in rows if ql in (r["campus_name"] or "").lower()]
+    return {"items": rows[offset: offset+limit], "total": len(rows)}
+
 @app.get("/geojson/districts")
 def geo_districts():
-    src = _choose(os.path.join(PROC_DIR, "districts.props.geojson"),
-                  os.path.join(DATA_DIR, "Current_Districts_2025.geojson"))
-    if not src:
-        raise HTTPException(404, "Districts GeoJSON not found")
-    return JSONResponse(_load_json(src), headers={"Cache-Control": "public, max-age=86400"})
+    return load_districts_geo()
 
 @app.get("/geojson/campuses")
-def geo_campuses_full():
-    src = _choose(os.path.join(PROC_DIR, "campuses.props.geojson"),
-                  os.path.join(DATA_DIR, "Schools_2024_to_2025.geojson"))
-    if not src:
-        raise HTTPException(404, "Campuses GeoJSON not found")
-    return JSONResponse(_load_json(src), headers={"Cache-Control": "public, max-age=86400"})
+def geo_campuses():
+    return load_campuses_geo()
 
-@app.get("/geojson/campuses_points")
-def campuses_points(bbox: str | None = Query(None, description="west,south,east,north (lon,lat)")):
-    items = _load_campuses_points()
-    if not items:
-        raise HTTPException(503, "Campuses points not ready")
-    res = items
-    if bbox:
-        try:
-            west, south, east, north = [float(v) for v in bbox.split(",")]
-        except Exception:
-            raise HTTPException(400, "Invalid bbox format. Use west,south,east,north")
-        res = [p for p in items if (west <= p["lon"] <= east and south <= p["lat"] <= north)]
-    return JSONResponse(res, headers={"Cache-Control": "public, max-age=300"})
+def _bin_size_for_zoom(z: int) -> Tuple[float, float]:
+    z = min(max(z, 5), 13)
+    table = {
+        5: (1.2, 1.2),
+        6: (0.8, 0.8),
+        7: (0.4, 0.4),
+        8: (0.20, 0.20),
+        9: (0.10, 0.10),
+        10: (0.05, 0.05),
+        11: (0.025, 0.025),
+        12: (0.012, 0.012),
+        13: (0.006, 0.006),
+    }
+    return table[z]
 
 @app.get("/geojson/campuses_bins")
 def campuses_bins(
-    bbox: str = Query(..., description="west,south,east,north (lon,lat)"),
-    zoom: int = Query(9, ge=0, le=22, description="Map zoom level (int)")
+    bbox: str = Query(..., description="west,south,east,north"),
+    zoom: int = Query(9, ge=1, le=20)
 ):
-    items = _load_campuses_points()
-    if not items:
-        raise HTTPException(503, "Campuses points not ready")
-
     try:
-        west, south, east, north = [float(v) for v in bbox.split(",")]
+        west, south, east, north = [float(x) for x in bbox.split(",")]
     except Exception:
-        raise HTTPException(400, "Invalid bbox format. Use west,south,east,north")
+        raise HTTPException(status_code=400, detail="Invalid bbox; expected 'west,south,east,north'")
 
-    # Filter to bbox first
-    pts = [p for p in items if (west <= p["lon"] <= east and south <= p["lat"] <= north)]
-    if not pts:
-        return JSONResponse([], headers={"Cache-Control": "public, max-age=120"})
+    lon_step, lat_step = _bin_size_for_zoom(zoom)
+    pts = load_campus_points()
 
-    # Dynamic grid size by zoom -> coarser at low zooms; finer as you zoom in
-    # Keeps bins under ~1000 in normal metros
-    if zoom <= 8:
-        grid = 24
-    elif zoom == 9:
-        grid = 32
-    elif zoom == 10:
-        grid = 48
-    elif zoom == 11:
-        grid = 64
-    else:
-        grid = 80  # still used if someone calls bins at high zoom
+    # filter by bbox
+    filtered = [p for p in pts if (west <= p["lon"] <= east and south <= p["lat"] <= north)]
+    if not filtered:
+        return {"type": "FeatureCollection", "features": []}
 
-    lon_span = max(east - west, 1e-6)
-    lat_span = max(north - south, 1e-6)
-    lon_cell = lon_span / grid
-    lat_cell = lat_span / grid
+    # binning
+    bins = {}  # (ix,iy) -> {"count": n, "lon": cen_lon, "lat": cen_lat}
+    for p in filtered:
+        ix = math.floor((p["lon"] - west) / lon_step)
+        iy = math.floor((p["lat"] - south) / lat_step)
+        key = (ix, iy)
+        if key not in bins:
+            bin_w = west + ix * lon_step
+            bin_s = south + iy * lat_step
+            cen_lon = bin_w + lon_step / 2
+            cen_lat = bin_s + lat_step / 2
+            bins[key] = {"count": 0, "lon": cen_lon, "lat": cen_lat}
+        bins[key]["count"] += 1
 
-    bins = {}
-    for p in pts:
-        gx = int((p["lon"] - west) / lon_cell)
-        gy = int((p["lat"] - south) / lat_cell)
-        key = (gx, gy)
-        b = bins.get(key)
-        if b is None:
-            bins[key] = {"count": 1, "sum_lat": p["lat"], "sum_lon": p["lon"]}
-        else:
-            b["count"] += 1
-            b["sum_lat"] += p["lat"]
-            b["sum_lon"] += p["lon"]
+    features = [{
+        "type": "Feature",
+        "geometry": {"type": "Point", "coordinates": [b["lon"], b["lat"]]},
+        "properties": {"count": b["count"]}
+    } for b in bins.values()]
 
-    # Centroid per bin
-    out = []
-    for (gx, gy), b in bins.items():
-        c = b["count"]
-        lat = b["sum_lat"] / c
-        lon = b["sum_lon"] / c
-        out.append({"lat": lat, "lon": lon, "count": c})
-
-    # Optional: cap the bins to avoid clutter (keep the densest up to 1,200 bins)
-    out.sort(key=lambda x: x["count"], reverse=True)
-    if len(out) > 1200:
-        out = out[:1200]
-
-    return JSONResponse(out, headers={"Cache-Control": "public, max-age=120"})
+    return {"type": "FeatureCollection", "features": features}
