@@ -1,187 +1,120 @@
-import React, { useEffect, useRef, useState } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
+import { MapContainer, TileLayer, GeoJSON, useMapEvents } from 'react-leaflet'
 import L from 'leaflet'
-import { MapContainer, TileLayer, GeoJSON, Marker, useMapEvents } from 'react-leaflet'
 import 'leaflet/dist/leaflet.css'
-import MarkerClusterGroup from 'react-leaflet-cluster'
-import 'react-leaflet-cluster/dist/assets/MarkerCluster.css'
-import 'react-leaflet-cluster/dist/assets/MarkerCluster.Default.css'
 import { api } from '../api'
 
-// Fix default icon URLs for Vite deployments
-const iconRetinaUrl = 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png'
-const iconUrl       = 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png'
-const shadowUrl     = 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png'
-L.Icon.Default.mergeOptions({ iconRetinaUrl, iconUrl, shadowUrl })
-
-function ViewportWatcher({ onChange }) {
-  const map = useMapEvents({
-    moveend() {
-      const b = map.getBounds()
-      onChange && onChange({ zoom: map.getZoom(), bbox: [b.getWest(), b.getSouth(), b.getEast(), b.getNorth()] })
-    }
-  })
-  useEffect(() => {
-    const b = map.getBounds()
-    onChange && onChange({ zoom: map.getZoom(), bbox: [b.getWest(), b.getSouth(), b.getEast(), b.getNorth()] })
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
-  return null
+// Simple LRU cache to avoid refetching the same tiles repeatedly
+class LRU {
+  constructor(limit=40){ this.limit = limit; this.map = new Map() }
+  get(k){ if(!this.map.has(k)) return; const v = this.map.get(k); this.map.delete(k); this.map.set(k, v); return v }
+  set(k, v){ if(this.map.has(k)) this.map.delete(k); this.map.set(k, v); if(this.map.size>this.limit) this.map.delete(this.map.keys().next().value) }
 }
 
-export default function MapView({ onFeatureClick }) {
-  const [districts, setDistricts] = useState(null)
-  const [bins, setBins] = useState([])       // [{lat,lon,count}]
-  const [points, setPoints] = useState([])   // [{lat,lon,campus_9,school_name,district_6}]
-  const [showCampuses, setShowCampuses] = useState(false)
+const cache = new LRU(80)
+const clamp = (v,a,b)=>Math.min(b, Math.max(a, v))
+
+function BinsLayer({ onFeatureClick }) {
+  const [fc, setFc] = useState(null)
   const [loading, setLoading] = useState(false)
-  const [err, setErr] = useState(null)
-  const viewRef = useRef({ zoom: 6, bbox: [-107,25,-93,37] })
-  const abortRef = useRef(null)
-  const debounceRef = useRef(null)
+  const debRef = useRef(null)
+  const inflight = useRef({}) // key -> AbortController
 
-  useEffect(() => {
-    let mounted = true
-    api.geoDistricts().then(g => { if (mounted) setDistricts(g) }).catch(()=>{})
-    return () => { mounted=false }
-  }, [])
+  const fetchBins = async (bbox, zoom) => {
+    const round = (n, p=3) => Number(n.toFixed(p))
+    const key = `${round(bbox.getWest(),3)},${round(bbox.getSouth(),3)},${round(bbox.getEast(),3)},${round(bbox.getNorth(),3)}@${zoom}`
+    const cached = cache.get(key)
+    if (cached) return cached
 
-  function onViewportChange(v) {
-    viewRef.current = v
-    // Debounce to avoid spamming during quick pans
-    if (debounceRef.current) clearTimeout(debounceRef.current)
-    debounceRef.current = setTimeout(() => {
-      if (showCampuses) fetchData()
-    }, 220)
-  }
-
-  async function fetchData() {
-    const { zoom, bbox } = viewRef.current
-    if (!showCampuses) return
-
-    // Mode switch: bins for zoom < 12, points for >= 12
-    const useBins = zoom < 12
-
-    // Cancel any in-flight request
-    if (abortRef.current) abortRef.current.abort()
     const ctrl = new AbortController()
-    abortRef.current = ctrl
-    setLoading(true); setErr(null)
-
-    try {
-      if (useBins) {
-        const url = `${api.base}/geojson/campuses_bins?bbox=${bbox.join(',')}&zoom=${zoom}`
-        const res = await fetch(url, { signal: ctrl.signal })
-        if (!res.ok) throw new Error(`HTTP ${res.status}`)
-        const data = await res.json()
-        setBins(data); setPoints([]) // clear the other layer
-      } else {
-        const url = `${api.base}/geojson/campuses_points?bbox=${bbox.join(',')}`
-        const res = await fetch(url, { signal: ctrl.signal })
-        if (!res.ok) throw new Error(`HTTP ${res.status}`)
-        const data = await res.json()
-        // Guard against absurd loads
-        if (data.length > 4000) {
-          // Instead of trying to render all, suggest closer zoom
-          setBins([]); setPoints([]); throw new Error(`Too many points (${data.length}). Zoom in.`)
-        }
-        setPoints(data); setBins([])
-      }
-    } catch (e) {
-      if (e.name !== 'AbortError') setErr(String(e))
-    } finally {
-      setLoading(false)
-    }
+    inflight.current[key] = ctrl
+    const url = `${api.base}/geojson/campuses_bins?bbox=${bbox.getWest()},${bbox.getSouth()},${bbox.getEast()},${bbox.getNorth()}&zoom=${zoom}`
+    const res = await fetch(url, { signal: ctrl.signal })
+    if (!res.ok) throw new Error(`HTTP ${res.status}`)
+    const gj = await res.json()
+    cache.set(key, gj)
+    delete inflight.current[key]
+    return gj
   }
 
-  function toggleCampuses() {
-    setShowCampuses(v => {
-      const next = !v
-      if (next) fetchData()
-      return next
+  // Debounced viewport listener
+  useMapEvents({
+    moveend: () => scheduleUpdate(),
+    zoomend: ()  => scheduleUpdate(),
+    load:    ()  => scheduleUpdate(),
+  })
+
+  function scheduleUpdate() {
+    if (debRef.current) clearTimeout(debRef.current)
+    debRef.current = setTimeout(update, 180) // debounce
+  }
+
+  async function update() {
+    try {
+      const map = window.__rlMap
+      if (!map) return
+      const z = clamp(map.getZoom(), 4, 18)
+      const bbox = map.getBounds()
+      setLoading(true)
+      const gj = await fetchBins(bbox, z)
+      setFc(gj)
+    } catch (e) {
+      console.error(e)
+    } finally { setLoading(false) }
+  }
+
+  // Styling: circle bins (canvas renderer is enabled on the MapContainer)
+  const pointToLayer = (feat, latlng) => {
+    const c = Number(feat.properties?.count || 1)
+    const r = Math.max(2, Math.min(18, 2 + Math.log2(c+1)*3))
+    return L.circleMarker(latlng, {
+      radius: r,
+      renderer: window.__canvasRenderer, // force canvas
+      color: '#003366',
+      weight: 0.5,
+      fillColor: '#003366',
+      fillOpacity: 0.35,
+      bubblingMouseEvents: false,
     })
   }
 
-  function BinsLayer() {
-    if (!showCampuses || !bins?.length) return null
-    // Render bins as compact count markers
-    return (
-      <>
-        {bins.map((b, i) => (
-          <Marker key={i}
-            position={[b.lat, b.lon]}
-            icon={L.divIcon({
-              className: 'bin-marker',
-              html: `<div class="bin-dot"><span>${b.count}</span></div>`,
-              iconSize: [32, 32],
-              iconAnchor: [16, 16]
-            })}
-            eventHandlers={{
-              click: (e) => {
-                // nudge user to detail: zoom in one level at clicked bin
-                const map = e.target._map
-                map.setView([b.lat, b.lon], Math.min(map.getZoom()+1, 18))
-              }
-            }}
-          />
-        ))}
-      </>
-    )
-  }
-
-  function PointsClusterLayer() {
-    const items = points || []
-    if (!showCampuses || !items.length) return null
-    return (
-      <MarkerClusterGroup chunkedLoading maxClusterRadius={60}>
-        {items.map((p, i) => (
-          <Marker key={i} position={[p.lat, p.lon]} eventHandlers={{
-            click: () => onFeatureClick?.({ type:'school', data: {
-              campus_name: p.school_name || 'Campus',
-              campus_9: p.campus_9,
-              district_6: p.district_6
-            }})
-          }} />
-        ))}
-      </MarkerClusterGroup>
-    )
+  const onEach = (feat, layer) => {
+    const p = feat.properties||{}
+    const label = p.count ? `${p.count} campus${p.count===1?'':'es'}` : 'Campus'
+    layer.bindTooltip(label, {sticky: true, direction:'top', offset:[0,-6]})
+    layer.on('click', () => onFeatureClick?.({ type:'bin', data: p }))
   }
 
   return (
     <>
-      <div className="row" style={{justifyContent:'space-between', marginBottom:8}}>
-        <div className="row" style={{gap:8, alignItems:'center'}}>
-          <button className="btn" onClick={toggleCampuses}>
-            {showCampuses ? 'Hide' : 'Show'} Campuses
-          </button>
-          <div style={{fontSize:12, color:'#6a7a95'}}>
-            {showCampuses
-              ? (loading ? 'loading…' : (points.length ? `${points.length.toLocaleString()} points` : (bins.length ? `${bins.length} clusters` : 'ready')))
-              : 'zoom for details (clusters <12, points ≥12)'}
-          </div>
-        </div>
-        {err && <div style={{fontSize:12, color:'#a33'}}>Error: {err}</div>}
-      </div>
-
-      <div style={{height:360, borderRadius:12, overflow:'hidden', position:'relative'}}>
-        {loading && <div className="map-loading">Loading…</div>}
-        <MapContainer center={[31.0, -99.0]} zoom={6} preferCanvas={true} style={{height:'100%', width:'100%'}}>
-          <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-          <ViewportWatcher onChange={onViewportChange} />
-          {districts && <GeoJSON data={districts} style={{color:'#003366', weight:1, fillOpacity:0.1}}
-            onEachFeature={(feature, layer) => {
-              layer.on('click', () => {
-                const props = feature.properties || {}
-                onFeatureClick?.({ type:'district', data: {
-                  district_name: props.name || props.DISTNAME || 'District',
-                  district_6: props.district_6 || props.DISTRICT_N
-                }})
-              })
-            }}
-          />}
-          <BinsLayer />
-          <PointsClusterLayer />
-        </MapContainer>
-      </div>
+      {loading && <div className="spinner" />}
+      {fc && <GeoJSON data={fc} pointToLayer={pointToLayer} onEachFeature={onEach} />}
     </>
+  )
+}
+
+export default function MapView({ onFeatureClick }) {
+  // Stash map + a canvas renderer on window to avoid recreating objects
+  const mapRef = useRef(null)
+  const whenCreated = (m) => {
+    window.__rlMap = m
+    window.__canvasRenderer = L.canvas({ padding: 0.5 })
+  }
+
+  return (
+    <div style={{height:360, borderRadius:12, overflow:'hidden'}}>
+      <MapContainer
+        center={[31.0, -99.0]}
+        zoom={6}
+        minZoom={5}
+        preferCanvas={true}
+        whenCreated={whenCreated}
+        ref={mapRef}
+        style={{height:'100%', width:'100%'}}
+      >
+        <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+        <BinsLayer onFeatureClick={onFeatureClick} />
+      </MapContainer>
+    </div>
   )
 }
