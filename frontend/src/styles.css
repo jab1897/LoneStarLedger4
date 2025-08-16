@@ -60,3 +60,19 @@ header {
 
 .legend { display: flex; gap: 10px; font-size: 12px; align-items: center; }
 .legend .swatch { width: 12px; height: 12px; border-radius: 2px; }
+
+/* Bin markers (clusters from server) */
+.bin-marker .bin-dot {
+  display:flex; align-items:center; justify-content:center;
+  width:28px; height:28px; border-radius:14px;
+  background: rgba(0,51,102,0.92); color:white; font-size:12px; font-weight:700;
+  box-shadow: 0 1px 6px rgba(0,0,0,0.25);
+}
+
+/* Spinner overlay on map */
+.map-loading {
+  position:absolute; inset:8px 8px auto auto; 
+  background: rgba(255,255,255,0.9); border:1px solid #e6ebf5; border-radius:10px; 
+  padding:6px 10px; font-size:12px; color:#132135; z-index:999;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.08);
+}
