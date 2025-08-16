@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { api } from './api'
 import SummaryCards from './components/SummaryCards'
 import SearchBar from './components/SearchBar'
@@ -7,6 +7,8 @@ import SchoolTable from './components/SchoolTable'
 import SpendChart from './components/SpendChart'
 import MapView from './components/MapView'
 import Drawer from './components/Drawer'
+import FiltersBar from './components/FiltersBar'
+import NewsletterForm from './components/NewsletterForm'
 
 export default function App() {
   const [summary, setSummary] = useState(null)
@@ -14,31 +16,26 @@ export default function App() {
   const [schools, setSchools] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
-  const [selection, setSelection] = useState(null) // { type: 'district'|'school', data: {...} }
+  const [selection, setSelection] = useState(null)
+  const [filters, setFilters] = useState({})
 
-  useEffect(() => {
-    let mounted = true
-    async function load() {
-      try {
-        setLoading(true)
-        const [sum, d, s] = await Promise.all([
-          api.summary(),
-          api.listDistricts(25, 0).then(r => r.items),
-          api.listSchools(25, 0).then(r => r.items),
-        ])
-        if (!mounted) return
-        setSummary(sum)
-        setDistricts(d)
-        setSchools(s)
-      } catch (e) {
-        setError(String(e))
-      } finally {
-        setLoading(false)
-      }
+  async function loadAll() {
+    try {
+      setLoading(true)
+      const [sum, d, s] = await Promise.all([
+        api.summary(),
+        api.listDistricts(25, 0, filters).then(r => r.items),
+        api.listSchools(25, 0, filters).then(r => r.items),
+      ])
+      setSummary(sum); setDistricts(d); setSchools(s)
+    } catch (e) {
+      setError(String(e))
+    } finally {
+      setLoading(false)
     }
-    load()
-    return () => { mounted = false }
-  }, [])
+  }
+
+  useEffect(() => { loadAll() }, [JSON.stringify(filters)])
 
   return (
     <>
@@ -52,6 +49,8 @@ export default function App() {
           <SearchBar onPick={setSelection} />
           <a className="btn alt" href={api.base} target="_blank" rel="noreferrer">API</a>
         </div>
+
+        <FiltersBar onApply={setFilters} />
 
         {loading ? <div className="spinner" /> : error ? <div className="card">Error: {error}</div> :
         <>
@@ -75,8 +74,12 @@ export default function App() {
             </div>
             <div className="card">
               <h3>Interactive Map</h3>
-              <MapView onFeatureClick={setSelection}/>
+              <MapView onFeatureClick={setSelection} selection={selection}/>
             </div>
+          </div>
+
+          <div style={{marginTop:12}}>
+            <NewsletterForm />
           </div>
         </>}
       </div>
