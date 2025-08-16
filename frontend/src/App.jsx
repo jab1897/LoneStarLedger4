@@ -12,7 +12,7 @@ export default function App(){
       </header>
 
       <nav className="tabs" role="navigation" aria-label="Primary">
-        <NavLink to="/" end className={({isActive}) => isActive ? 'tab active' : 'tab'}>Overview</NavLink>
+        <NavLink to="/" end className={({isActive}) => isActive ? 'tab active' : 'tab'}>Home</NavLink>
         <NavLink to="/districts" className={({isActive}) => isActive ? 'tab active' : 'tab'}>Districts</NavLink>
         <NavLink to="/campuses" className={({isActive}) => isActive ? 'tab active' : 'tab'}>Campuses</NavLink>
         <NavLink to="/map" className={({isActive}) => isActive ? 'tab active' : 'tab'}>Map</NavLink>

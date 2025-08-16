@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>LoneStarLedger</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+      integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+    <!-- GA4 (optional): include only if VITE_GA_ID is defined -->
+    <script type="module">
+      const GA = import.meta.env.VITE_GA_ID;
+      if (GA) {
+        const gtag = document.createElement('script');
+        gtag.setAttribute('async','');
+        gtag.src = `https://www.googletagmanager.com/gtag/js?id=${GA}`;
+        document.head.appendChild(gtag);
+        window.dataLayer = window.dataLayer || [];
+        function g(){window.dataLayer.push(arguments);}
+        window.gtag = g;
+        g('js', new Date());
+        g('config', GA);
+      }
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>
