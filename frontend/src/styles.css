@@ -91,3 +91,9 @@ header {
 .tab:hover { background:#f2f6fc; }
 .tab.active { background:#003366; color:#fff; }
 .tab.right { margin-left:auto; }
+
+
+/* simple tabs */
+nav.tabs { display:flex; gap:8px; }
+.tab { padding:8px 10px; border-radius:10px; text-decoration:none; color:#fff; opacity:.9 }
+.tab.active { background: rgba(255,255,255,.15); opacity:1; font-weight:600; }
