@@ -13,7 +13,7 @@ export default function Hero({ children }) {
           </p>
         </div>
         <div className="hero__aside">
-          {children /* e.g., SearchBar */}
+          {children /* SearchBar slot */}
         </div>
       </div>
     </section>

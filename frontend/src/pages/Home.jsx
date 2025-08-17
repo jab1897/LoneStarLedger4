@@ -46,21 +46,20 @@ export default function Home() {
           if (!sel) return
           if (sel.type === 'district') window.location.href = `/district/${sel.data.district_6}`
           if (sel.type === 'school') window.location.href = `/campus/${sel.data.campus_9}`
-        }} />
+        }}/>
       </Hero>
 
       <div className="container">
-        {/* Map directly under the blurb */}
         <div className="card">
           <h3>Texas District Map</h3>
           <DistrictMap />
         </div>
 
-        {/* Stats + tables + charts */}
         {loading ? <div className="spinner" /> :
          error ? <div className="card">Error: {error}</div> :
         <>
           <SummaryCards data={summary || {}} />
+
           <div className="grid" style={{marginTop:12}}>
             <div className="card">
               <h3>Spending Snapshot</h3>

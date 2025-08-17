@@ -117,3 +117,25 @@ nav.tabs { display:flex; gap:8px; }
 
 /* Tweak card spacing so map sits comfortably under hero */
 .container .card h3 { margin-top: 4px; }
+
+
+/* App bar */
+.appbar{ background:#0a2d55; color:#fff; }
+.appbar__inner{ max-width:1200px; margin:0 auto; padding:12px; display:flex; gap:12px; align-items:center; justify-content:space-between; }
+.appbar .brand{ color:#fff; text-decoration:none; font-weight:800; }
+
+/* Hero section (readable) */
+.hero{
+  background: linear-gradient(180deg, #0a2d55 0%, #0a2d55 85%, rgba(10,45,85,0.0) 100%);
+  color: #fff;
+  padding: 18px 0 24px;
+  margin-bottom: 10px;
+}
+.hero__inner{
+  max-width: 1200px; margin: 0 auto; padding: 0 12px;
+  display:flex; gap:16px; align-items:flex-end; justify-content:space-between; flex-wrap:wrap;
+}
+.hero__title{ margin:0; font-weight:800; font-size:28px; letter-spacing:.2px; }
+.hero__tagline{ margin:2px 0 8px; font-weight:600; opacity:.95 }
+.hero__blurb{ margin:0; opacity:.95; max-width:720px }
+.hero__aside{ min-width: 300px }

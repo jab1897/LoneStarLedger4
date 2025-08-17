@@ -3,12 +3,10 @@ import { MapContainer, TileLayer, GeoJSON } from 'react-leaflet'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import { api } from '../api'
-import { useNavigate } from 'react-router-dom'
 
 export default function DistrictMap() {
   const [data, setData] = useState(null)
   const [error, setError] = useState(null)
-  const navigate = useNavigate()
   const geoRef = useRef(null)
 
   useEffect(() => {
@@ -26,32 +24,25 @@ export default function DistrictMap() {
     fillOpacity: 0.08
   })
 
-  const highlightStyle = {
-    weight: 2,
-    fillOpacity: 0.18
-  }
+  const highlightStyle = { weight: 2, fillOpacity: 0.18 }
 
   const onEach = (feature, layer) => {
     const props = feature?.properties || {}
     const dName = props.name || props.DISTNAME || 'District'
     const cdn = props.district_6 || props.DISTRICT_N
 
-    // Hover: sticky tooltip
+    // Hover tooltip
     layer.bindTooltip(dName, { permanent: false, sticky: true, direction: 'top' })
 
     layer.on('mouseover', (e) => {
       e.target.setStyle(highlightStyle)
-      // bring to front for crisp outline
-      if (!L.Browser.ie && !L.Browser.opera && !L.Browser.edge) {
-        e.target.bringToFront()
-      }
+      if (!L.Browser.ie && !L.Browser.opera && !L.Browser.edge) e.target.bringToFront()
     })
-    layer.on('mouseout', (e) => {
-      geoRef.current?.resetStyle(e.target)
-    })
-    // Click: navigate to district page
+    layer.on('mouseout', (e) => geoRef.current?.resetStyle(e.target))
+
+    // Click navigation (avoid router dependency)
     layer.on('click', () => {
-      if (cdn) navigate(`/district/${cdn}`)
+      if (cdn) window.location.href = `/district/${cdn}`
     })
   }
 
@@ -60,7 +51,7 @@ export default function DistrictMap() {
 
   return (
     <div style={{height: 440, borderRadius: 12, overflow:'hidden'}}>
-      <MapContainer center={[31.0, -99.0]} zoom={6} style={{height: '100%', width:'100%'}}>
+      <MapContainer center={[31.0, -99.0]} zoom={6} style={{height:'100%', width:'100%'}}>
         <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
         <GeoJSON data={data} ref={geoRef} style={style} onEachFeature={onEach} />
       </MapContainer>
