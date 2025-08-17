@@ -1,65 +1,83 @@
 import React, { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { api } from '../api'
-import SummaryCards from '../components/SummaryCards'
+import Hero from '../components/Hero'
 import SearchBar from '../components/SearchBar'
-import LandingMap from '../components/LandingMap'
+import DistrictMap from '../components/DistrictMap'
+import SummaryCards from '../components/SummaryCards'
+import SpendChart from '../components/SpendChart'
+import DistrictTable from '../components/DistrictTable'
+import SchoolTable from '../components/SchoolTable'
+import { api } from '../api'
 
-export default function Home(){
+export default function Home() {
   const [summary, setSummary] = useState(null)
+  const [districts, setDistricts] = useState([])
+  const [schools, setSchools] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
-  const navigate = useNavigate()
 
-  useEffect(()=>{
-    let m=true
-    ;(async()=>{
-      try{
+  useEffect(() => {
+    let alive = true
+    async function load() {
+      try {
         setLoading(true)
-        const sum = await api.summary()  // reuses existing /summary
-        if(!m) return
+        const [sum, d, s] = await Promise.all([
+          api.summary().catch(()=>null),
+          api.listDistricts(25, 0).then(r => r.items).catch(()=>[]),
+          api.listSchools(25, 0).then(r => r.items).catch(()=>[]),
+        ])
+        if (!alive) return
         setSummary(sum)
-      }catch(e){ setError(String(e)) }
-      finally{ setLoading(false) }
-    })()
-    return ()=>{ m=false }
-  },[])
+        setDistricts(d)
+        setSchools(s)
+      } catch (e) {
+        if (alive) setError(String(e))
+      } finally {
+        if (alive) setLoading(false)
+      }
+    }
+    load()
+    return () => { alive = false }
+  }, [])
 
   return (
     <>
-      <section className="card" style={{marginBottom:12}}>
-        <h2 style={{margin:'6px 0 6px', color:'var(--blue)'}}>LoneStarLedger</h2>
-        <div style={{opacity:0.85}}>
-          K-12 finance & accountability transparency for Texas. Explore statewide spending, zoom to your district, and view campus performance.
+      <Hero>
+        <SearchBar onPick={(sel)=>{
+          if (!sel) return
+          if (sel.type === 'district') window.location.href = `/district/${sel.data.district_6}`
+          if (sel.type === 'school') window.location.href = `/campus/${sel.data.campus_9}`
+        }} />
+      </Hero>
+
+      <div className="container">
+        {/* Map directly under the blurb */}
+        <div className="card">
+          <h3>Texas District Map</h3>
+          <DistrictMap />
         </div>
-        <div className="row" style={{marginTop:10}}>
-          <div style={{minWidth:280, flex:'0 1 360px'}}>
-            <SearchBar onPick={(sel)=>{
-              if (!sel) return
-              if (sel.type === 'district') navigate(`/district/${sel.data.district_6}`)
-              else if (sel.type === 'school') navigate(`/campus/${sel.data.campus_9}`)
-            }} />
+
+        {/* Stats + tables + charts */}
+        {loading ? <div className="spinner" /> :
+         error ? <div className="card">Error: {error}</div> :
+        <>
+          <SummaryCards data={summary || {}} />
+          <div className="grid" style={{marginTop:12}}>
+            <div className="card">
+              <h3>Spending Snapshot</h3>
+              <SpendChart rows={districts.slice(0,5)} />
+            </div>
+            <div className="card">
+              <h3>Top Districts</h3>
+              <DistrictTable rows={districts} onSelect={(row)=> window.location.href = `/district/${row.district_6}`} />
+            </div>
           </div>
-          <button className="btn" onClick={()=>{
-            if (!navigator.geolocation) return alert('Geolocation not available')
-            navigator.geolocation.getCurrentPosition(
-              pos => window.dispatchEvent(new CustomEvent('center-on', { detail: { lat: pos.coords.latitude, lng: pos.coords.longitude } })),
-              () => alert('Location permission denied')
-            )
-          }}>Use my location</button>
-        </div>
-      </section>
 
-      <section className="card" style={{marginBottom:12}}>
-        <h3>Texas School Districts</h3>
-        <LandingMap />
-        <div style={{fontSize:12, opacity:0.7, marginTop:8}}>Hover to see district names. Click to open the district page.</div>
-      </section>
-
-      <section className="card">
-        <h3>Statewide snapshot</h3>
-        {loading ? <div className="spinner" /> : error ? <div>Error: {error}</div> : <SummaryCards data={summary} />}
-      </section>
+          <div className="card" style={{marginTop:12}}>
+            <h3>Top Schools</h3>
+            <SchoolTable rows={schools} onSelect={(row)=> window.location.href = `/campus/${row.campus_9}`} />
+          </div>
+        </>}
+      </div>
     </>
   )
 }
