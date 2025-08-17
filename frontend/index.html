@@ -26,8 +26,23 @@
         }
       })();
     </script>
-  </head>
+  <script>
+  // Global error surface to avoid blank-screen
+  window.addEventListener('error', function(e){
+    var el = document.getElementById('fatal');
+    if(el){ el.textContent = 'App failed to load: ' + (e.error?.message || e.message || e.filename); el.style.display='block'; }
+    console.error('Global error', e.error || e);
+  });
+  window.addEventListener('unhandledrejection', function(e){
+    var el = document.getElementById('fatal');
+    if(el){ el.textContent = 'App failed to start: ' + (e.reason?.message || String(e.reason)); el.style.display='block'; }
+    console.error('Unhandled rejection', e.reason);
+  });
+</script>
+</head>
+
   <body>
+    <div id="fatal" style="display:none; position:fixed; top:0; left:0; right:0; background:#f8d7da; color:#721c24; padding:10px; z-index:9999; font-family: system-ui;"></div>
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
   </body>
