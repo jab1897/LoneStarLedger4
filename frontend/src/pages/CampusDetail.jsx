@@ -34,7 +34,7 @@ export default function CampusDetail(){
           p = pts.find(x => String(x.campus_9||x.CAMPUS||x.id) === String(id)) || null
         } catch {}
         if (!p) {
-          # fallback: try geojson (expensive)
+          // fallback: try geojson (expensive)
           try {
             const g = await api.geoCampuses()
             const ft = (g.features||[]).find(ft=> {
