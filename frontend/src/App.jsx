@@ -4,6 +4,7 @@ import Home from './pages/Home'
 import DistrictDetail from './pages/DistrictDetail'
 import CampusDetail from './pages/CampusDetail'
 import './styles.css'
+import ErrorBoundary from './components/ErrorBoundary'
 
 export default function App(){
   return (
@@ -16,11 +17,13 @@ export default function App(){
         </div>
       </header>
 
+      <ErrorBoundary>
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/district/:cdn" element={<DistrictDetail />} />
         <Route path="/campus/:id" element={<CampusDetail />} />
       </Routes>
+      </ErrorBoundary>
     </BrowserRouter>
   )
 }

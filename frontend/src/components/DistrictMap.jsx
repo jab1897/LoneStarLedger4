@@ -5,6 +5,7 @@ import 'leaflet/dist/leaflet.css'
 import { api } from '../api'
 
 export default function DistrictMap() {
+  if (typeof window === 'undefined') return null;
   const [data, setData] = useState(null)
   const [error, setError] = useState(null)
   const geoRef = useRef(null)
