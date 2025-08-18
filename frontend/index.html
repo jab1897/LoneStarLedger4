@@ -4,6 +4,17 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Lone Star Ledger</title>
+      <!-- Optional analytics: set VITE_ANALYTICS_SRC in Vercel envs -->
+    <script type="module">
+      const src = window.ENV_ANALYTICS_SRC || (import.meta?.env?.VITE_ANALYTICS_SRC);
+      if (src) {
+        const s = document.createElement('script');
+        s.defer = true;
+        s.setAttribute('data-domain', 'lone-star-ledger4.vercel.app');
+        s.src = src;
+        document.head.appendChild(s);
+      }
+    </script>
   </head>
   <body>
     <div id="root"></div>
