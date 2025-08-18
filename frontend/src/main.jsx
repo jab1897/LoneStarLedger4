@@ -1,25 +1,34 @@
 import React from 'react'
 import { createRoot } from 'react-dom/client'
-import { BrowserRouter, Routes, Route } from 'react-router-dom'
-import App from './App.jsx'
-import ErrorBoundary from './ErrorBoundary.jsx'
-import DistrictDetail from './pages/DistrictDetail.jsx'
-import CampusDetail from './pages/CampusDetail.jsx'
-import Legislators from './pages/Legislators.jsx'
-import Contact from './pages/Contact.jsx'
-import Newsletter from './pages/Newsletter.jsx'
 import './styles.css'
 
-createRoot(document.getElementById('root')).render(
-  <BrowserRouter>
-    <Routes>
-      <Route path="/" element={<App />} />
-      <Route path="/district/:id" element={<DistrictDetail />} />
-      <Route path="/campus/:id" element={<CampusDetail />} />
-      <Route path="/legislators" element={<Legislators />} />
-      <Route path="/contact" element={<Contact />} />
-      <Route path="/newsletter" element={<Newsletter />} />
-      <Route path="*" element={<App />} />
-    </Routes>
-  </BrowserRouter>
-)
+function show(msg){
+  const el = document.getElementById('fatal')
+  if (el){ el.textContent = msg; el.style.display = 'block' }
+}
+function hide(){
+  const el = document.getElementById('fatal')
+  if (el){ el.style.display = 'none' }
+}
+
+// show a message immediately (in case JS loads but React hasn't mounted yet)
+show('Loading app…')
+
+async function bootstrap(){
+  try {
+    const mod = await import('./App.jsx') // dynamic import so errors are catchable
+    const App = mod.default
+    const root = createRoot(document.getElementById('root'))
+    root.render(
+      <React.StrictMode>
+        <App />
+      </React.StrictMode>
+    )
+    hide()
+  } catch (e) {
+    console.error('Boot error:', e)
+    show('Boot error: ' + (e?.message || String(e)))
+  }
+}
+
+bootstrap()
