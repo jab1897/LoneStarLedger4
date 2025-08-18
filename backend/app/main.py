@@ -197,3 +197,46 @@ def campuses_bins(
     } for b in bins.values()]
 
     return {"type": "FeatureCollection", "features": features}
+
+
+# ---- Statewide summary (very light) -----------------------------------------
+@app.get("/stats/state")
+def stats_state():
+    """
+    Returns lightweight statewide stats.
+    - districts_count from processed GeoJSON if present
+    - campuses_count from campuses.points.json if present
+    - spend/per_pupil/debt left as None until CSV aggregation is wired
+    """
+    import json, os
+    base = Path(__file__).resolve().parent.parent.parent / "data" / "processed"
+    geo = base / "geo"
+
+    districts_count = None
+    campuses_count = None
+
+    try:
+        p = geo / "districts.props.geojson"
+        if p.exists():
+            with p.open("r", encoding="utf-8") as f:
+                gj = json.load(f)
+            districts_count = len(gj.get("features", []))
+    except Exception:
+        pass
+
+    try:
+        p = base / "campuses.points.json"
+        if p.exists():
+            with p.open("r", encoding="utf-8") as f:
+                rows = json.load(f)
+            campuses_count = len(rows) if isinstance(rows, list) else None
+    except Exception:
+        pass
+
+    return {
+        "districts_count": districts_count,
+        "campuses_count": campuses_count,
+        "total_spend": None,     # wire from CSV later
+        "per_pupil": None,       # wire from CSV later
+        "debt_total": None       # wire from CSV later
+    }
