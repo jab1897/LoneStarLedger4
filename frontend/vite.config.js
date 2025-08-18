@@ -1,7 +1,15 @@
-import { defineConfig } from 'vite'
-import react from '@vitejs/plugin-react'
+import { defineConfig } from "vite";
+import react from "@vitejs/plugin-react";
 
 export default defineConfig({
   plugins: [react()],
-  base: '/', // ensure correct asset urls on Vercel
-})
+  server: {
+    proxy: {
+      "/api": {
+        target: "https://lonestarledger2-0.onrender.com",
+        changeOrigin: true,
+        rewrite: (p) => p.replace(/^\/api/, "")
+      }
+    }
+  }
+});
