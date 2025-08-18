@@ -1,25 +1,26 @@
-// frontend/src/api.js
-const API_BASE = import.meta.env.VITE_API_BASE || "https://lonestarledger2-0.onrender.com";
+// Frontend API helper: always use absolute API base from Vite env
+const RAW = (typeof import !== 'undefined' && typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_API_BASE)
+          || (typeof window !== 'undefined' && window.ENV_API_BASE)
+          || '';
 
-async function j(path, opts={}) {
-  const url = path.startsWith("http") ? path : API_BASE + path;
-  const r = await fetch(url, opts);
-  if (!r.ok) throw new Error(`HTTP ${r.status}`);
-  return await r.json();
+const API_BASE = String(RAW).replace(/\/+$/,''); // trim trailing slashes
+const toAbs = (p) => /^https?:\/\//i.test(p) ? p : `${API_BASE}${p.startsWith('/') ? '' : '/'}${p}`;
+
+async function getJson(path, init) {
+  const url = toAbs(path);
+  const r = await fetch(url, {
+    headers: { 'Accept': 'application/json', ...(init && init.headers || {}) },
+    ...init
+  });
+  if (!r.ok) throw new Error(`HTTP ${r.status} for ${url}`);
+  return r.json();
 }
 
 export const api = {
-  // statewide
-  stateStats:   () => j("/stats/state"),
-  stateSummary: () => j("/summary/state"),
-
-  // geojson
-  districts:    () => j("/geojson/districts"),
-  campusesPts:  () => j("/geojson/campuses_points"),
-
-  // detail endpoints (if present)
-  district: (id) => j(`/stats/district/${encodeURIComponent(id)}`),
-  campus:   (id) => j(`/stats/campus/${encodeURIComponent(id)}`),
+  state: () => getJson('/stats/state'),
+  summary: () => getJson('/summary/state'),
+  districtsGeo: () => getJson('/geojson/districts.props.geojson'),
+  campusesPoints: () => getJson('/geojson/campuses.points.json'), // enable on backend when ready
 };
 
 export default api;
