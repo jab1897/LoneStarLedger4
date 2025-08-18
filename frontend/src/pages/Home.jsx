@@ -3,7 +3,7 @@ import { MapContainer, TileLayer, GeoJSON } from "react-leaflet";
 import { useNavigate } from "react-router-dom";
 import { api } from "../api";
 
-// robust helpers for property names that may vary
+// Property helpers (backend field names can vary)
 const distId = (p) => p?.district_id ?? p?.DIST_ID ?? p?.id ?? p?.GEOID ?? null;
 const distName = (p) => p?.name ?? p?.district_name ?? p?.NAME ?? "District";
 
@@ -36,7 +36,11 @@ export default function Home() {
     <>
       <div className="card">
         <h3>Texas District Map</h3>
-        {err && <div className="card" style={{background:"#fee", color:"#900"}}>Map data failed to load: {String(err.message || err)}</div>}
+        {err && (
+          <div className="card" style={{ background:"#fee", color:"#900" }}>
+            Map data failed to load: {String(err.message || err)}
+          </div>
+        )}
         <MapContainer center={[31.2, -99.3]} zoom={6} className="leaflet-container" scrollWheelZoom>
           <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
             attribution="&copy; OpenStreetMap contributors" />
@@ -55,6 +59,7 @@ export default function Home() {
 function StatewideStats(){
   const [data, setData] = useState(null);
   const [err, setErr] = useState(null);
+
   useEffect(() => {
     let dead = false;
     (async () => {
@@ -71,8 +76,8 @@ function StatewideStats(){
   if (err) return <div style={{color:"#900"}}>Failed to load: {String(err.message || err)}</div>;
   if (!data) return <div>Loading…</div>;
 
-  // defensive formatting
   const fmt = (n, d = 0) => n == null ? "—" : (+n).toLocaleString(undefined, { maximumFractionDigits: d });
+
   return (
     <div style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:12 }}>
       <StatCard label="Districts" value={fmt(data.districts)} />
