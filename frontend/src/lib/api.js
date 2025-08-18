@@ -1,34 +1,55 @@
-// Unified API base with robust fallbacks.
-// Order: Vite build-time env -> runtime global -> window origin (disabled).
-const ENV_BASE =
-  (import.meta && import.meta.env && (import.meta.env.VITE_API_BASE || import.meta.env.VITE_API)) ||
-  (typeof window !== "undefined" && (window.__API_BASE__ || window.ENV_API_BASE)) ||
-  "";
+// frontend/src/lib/api.js
+// Resolves the API base (Render backend proxied through Vercel, or /api)
+const API_BASE =
+  (typeof window !== "undefined" && window.ENV_API_BASE) ||
+  (import.meta?.env?.VITE_API_BASE) ||
+  "/api";
 
-if (!ENV_BASE) {
-  // Do NOT silently fall back to same-origin; force explicit config.
-  console.warn("API base is empty; falling back to relative URLs will 404 on Vercel.");
-}
-const BASE = ENV_BASE.replace(/\/+$/, ""); // strip trailing slash
-
-const jget = async (path) => {
-  const url = `${BASE}${path}`;
-  const res = await fetch(url, { headers: { "Accept": "application/json" } });
+async function get(path, opts = {}) {
+  const url = path.startsWith("http") ? path : `${API_BASE}${path}`;
+  const res = await fetch(url, { credentials: "omit", ...opts });
   if (!res.ok) {
-    const msg = await res.text().catch(() => res.statusText);
-    throw new Error(`HTTP ${res.status} for ${url}: ${msg}`);
+    const text = await res.text().catch(() => "");
+    throw new Error(`GET ${url} -> ${res.status} ${text}`);
   }
   return res.json();
-};
+}
 
-export const api = {
-  // state-level summaries
-  stateStats: () => jget("/stats/state"),
-  stateSummary: () => jget("/summary/state"),
+/** Lightweight districts GeoJSON with simplified geometry + properties */
+export async function geoDistrictProps() {
+  // Expected backend route: GET /geo/districts.props
+  return get("/geo/districts.props");
+}
 
-  // district geometry (props-only geojson)
-  districtsProps: () => jget("/geojson/districts.props.geojson"),
+/** Full-resolution district geometries (use on district detail) */
+export async function geoDistrictsFull() {
+  // Expected backend route: GET /geo/districts
+  return get("/geo/districts");
+}
 
-  // campus points (if you expose later)
-  campusesPoints: () => jget("/geojson/campuses.points.json"),
-};
+/** Campus points as GeoJSON FeatureCollection */
+export async function campusPoints() {
+  // Expected backend route: GET /points/campuses
+  return get("/points/campuses");
+}
+
+/** Statewide summary numbers/cards */
+export async function stateStats() {
+  // Expected backend route: GET /stats/state
+  return get("/stats/state");
+}
+
+/** District summary for cards/tables */
+export async function districtSummary(id) {
+  return get(`/summary/district/${encodeURIComponent(id)}`);
+}
+
+/** Campus summary for cards/tables */
+export async function campusSummary(id) {
+  return get(`/summary/campus/${encodeURIComponent(id)}`);
+}
+
+/** Optional server-side search (not required if using client-only search) */
+export async function search(q) {
+  return get(`/search?q=${encodeURIComponent(q)}`);
+}
