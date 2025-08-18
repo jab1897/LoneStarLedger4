@@ -1,22 +1,24 @@
 {
   "rewrites": [
     {
-      "source": "/geojson/(.*)",
-      "destination": "https://lonestarledger2-0.onrender.com/geojson/$1"
+      "source": "/health",
+      "destination": "https://lonestarledger2-0.onrender.com/health"
     },
     {
-      "source": "/stats/(.*)",
-      "destination": "https://lonestarledger2-0.onrender.com/stats/$1"
+      "source": "/stats/:path*",
+      "destination": "https://lonestarledger2-0.onrender.com/stats/:path*"
     },
     {
-      "source": "/summary/(.*)",
-      "destination": "https://lonestarledger2-0.onrender.com/summary/$1"
-    }
-  ],
-  "routes": [
+      "source": "/summary/:path*",
+      "destination": "https://lonestarledger2-0.onrender.com/summary/:path*"
+    },
     {
-      "src": "/(.*)",
-      "dest": "/index.html"
+      "source": "/geojson/:path*",
+      "destination": "https://lonestarledger2-0.onrender.com/geojson/:path*"
+    },
+    {
+      "source": "/data/:path*",
+      "destination": "https://lonestarledger2-0.onrender.com/data/:path*"
     }
   ]
 }
