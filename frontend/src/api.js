@@ -1,26 +1,31 @@
-// Frontend API helper: always use absolute API base from Vite env
-const RAW = (typeof import !== 'undefined' && typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_API_BASE)
-          || (typeof window !== 'undefined' && window.ENV_API_BASE)
-          || '';
+// Frontend API wrapper. Always call the relative /api base.
+// Vercel rewrites /api/* -> Render, and Vite dev uses a proxy.
 
-const API_BASE = String(RAW).replace(/\/+$/,''); // trim trailing slashes
-const toAbs = (p) => /^https?:\/\//i.test(p) ? p : `${API_BASE}${p.startsWith('/') ? '' : '/'}${p}`;
+const BASE =
+  (import.meta?.env?.VITE_API_BASE && import.meta.env.VITE_API_BASE.trim()) ||
+  "/api";
 
-async function getJson(path, init) {
-  const url = toAbs(path);
-  const r = await fetch(url, {
-    headers: { 'Accept': 'application/json', ...(init && init.headers || {}) },
-    ...init
-  });
-  if (!r.ok) throw new Error(`HTTP ${r.status} for ${url}`);
-  return r.json();
-}
-
-export const api = {
-  state: () => getJson('/stats/state'),
-  summary: () => getJson('/summary/state'),
-  districtsGeo: () => getJson('/geojson/districts.props.geojson'),
-  campusesPoints: () => getJson('/geojson/campuses.points.json'), // enable on backend when ready
+const ok = async (res) => {
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    throw new Error(`HTTP ${res.status} ${res.statusText} — ${text.slice(0,160)}`);
+  }
+  return res.json();
 };
 
-export default api;
+export const api = {
+  // Statewide aggregates/summary
+  state:   () => fetch(`${BASE}/stats/state`).then(ok),
+  summary: () => fetch(`${BASE}/summary/state`).then(ok),
+
+  // GeoJSON sources
+  districtsProps: () => fetch(`${BASE}/geojson/districts.props.geojson`).then(ok),
+  districts:      () => fetch(`${BASE}/geojson/districts`).then(ok),
+
+  // Optional (if backend exposes this)
+  campusPoints:   () => fetch(`${BASE}/geojson/campuses.points.geojson`).then(ok),
+};
+
+if (typeof window !== "undefined") {
+  console.info("[LSL] API base =", BASE);
+}
