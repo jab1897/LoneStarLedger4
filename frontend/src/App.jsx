@@ -1,25 +1,43 @@
 import React from "react";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import Shell from "./shell/Shell.jsx";
-import ErrorBoundary from "./ErrorBoundary.jsx";
+import { BrowserRouter, Routes, Route, Link } from "react-router-dom";
 
-// Use the pages that already exist in your repo:
 import Home from "./pages/Home.jsx";
-import DistrictDetail from "./pages/DistrictDetail.jsx";
-import CampusDetail from "./pages/CampusDetail.jsx";
+import MapPage from "./pages/MapPage.jsx";           // keep if you use it
+import DistrictPage from "./pages/DistrictPage.jsx"; // or DistrictDetail.jsx in your repo
+import CampusPage from "./pages/CampusPage.jsx";     // or CampusDetail.jsx
+import Contact from "./pages/Contact.jsx";
+import ErrorBoundary from "./shell/ErrorBoundary.jsx";
 
 export default function App() {
   return (
     <BrowserRouter>
       <ErrorBoundary>
-        <Shell>
-          <Routes>
-            <Route path="/" element={<Home />} />
-            <Route path="/district/:districtId" element={<DistrictDetail />} />
-            <Route path="/campus/:campusId" element={<CampusDetail />} />
-            <Route path="*" element={<Navigate to="/" replace />} />
-          </Routes>
-        </Shell>
+        <header className="navbar">
+          <div className="container">
+            <div className="brand">LoneStarLedger</div>
+            <nav>
+              <Link to="/">Home</Link>
+              <Link to="/map">Map</Link>
+              <Link to="/contact">Contact</Link>
+            </nav>
+          </div>
+        </header>
+
+        {/* Pages render their own content (including any hero). */}
+        <Routes>
+          <Route path="/" element={<Home />} />
+          <Route path="/map" element={<MapPage />} />
+          <Route path="/district/:id" element={<DistrictPage />} />
+          <Route path="/campus/:id" element={<CampusPage />} />
+          <Route path="/contact" element={<Contact />} />
+          <Route path="*" element={<Home />} />
+        </Routes>
+
+        <footer className="site-footer">
+          <div className="container">
+            Texas K-12 finance &amp; accountability · Prototype 2.0
+          </div>
+        </footer>
       </ErrorBoundary>
     </BrowserRouter>
   );
