@@ -1,1 +1,22 @@
-{"rewrites":[{"source":"/(.*)","destination":"/"}]}
+{
+  "rewrites": [
+    {
+      "source": "/geojson/(.*)",
+      "destination": "https://lonestarledger2-0.onrender.com/geojson/$1"
+    },
+    {
+      "source": "/stats/(.*)",
+      "destination": "https://lonestarledger2-0.onrender.com/stats/$1"
+    },
+    {
+      "source": "/summary/(.*)",
+      "destination": "https://lonestarledger2-0.onrender.com/summary/$1"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/(.*)",
+      "dest": "/index.html"
+    }
+  ]
+}

@@ -1,0 +1,6 @@
+/* frontend/src/shell/layout.css */
+.topbar{position:sticky;top:0;z-index:20;display:flex;gap:24px;align-items:center;padding:14px 18px;background:#0b3556;color:#fff}
+.brand a{color:#fff;font-weight:800;text-decoration:none;font-size:22px}
+.nav a{color:#cfe6f7;text-decoration:none;margin-right:18px;font-weight:600}
+.nav a.active{color:#fff;text-decoration:underline}
+.main{padding:16px}
