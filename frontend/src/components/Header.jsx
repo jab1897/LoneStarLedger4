@@ -1,15 +1,15 @@
 import React from 'react'
-import { Link, NavLink } from 'react-router-dom'
+import { NavLink } from 'react-router-dom'
 
 export default function Header() {
   return (
     <header className="lsl-header">
       <div className="lsl-header-inner">
-        <Link to="/" className="brand">LoneStarLedger</Link>
+        <NavLink to="/" className="brand">LoneStarLedger</NavLink>
         <nav className="nav">
           <NavLink to="/" end>Home</NavLink>
-          <NavLink to="/legislators">Legislators</NavLink>
-          <NavLink to="/newsletter">Newsletter</NavLink>
+          <NavLink to="/map">Map</NavLink>
+          <NavLink to="/stats">Statewide stats</NavLink>
           <NavLink to="/contact">Contact</NavLink>
         </nav>
       </div>
