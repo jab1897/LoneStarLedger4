@@ -1,67 +1,86 @@
-import React, { useEffect, useRef, useState } from "react";
+
+import React, { useEffect, useMemo, useState, useCallback } from "react";
 
 /**
- * Pure Leaflet map (no React-Leaflet)
- * - Loads Leaflet as a real ESM module from CDN (no CommonJS/require at all)
- * - Works in the browser-only environment; lazily imported page-safe
+ * Client-only Leaflet MapView
+ * - No `require()`; uses dynamic ESM import to load react-leaflet in the browser.
+ * - Accepts GeoJSON via `data` (or `geojson`/`districts`) and optional `onFeatureClick`.
+ * - Keeps a sensible default center/zoom if none supplied.
  */
 export default function MapView({
-  height = 520,
-  center = [31.0, -99.0],
+  data,
+  geojson,
+  districts,
+  center = [31.0, -99.0], // Texas-ish
   zoom = 6,
-  className = "",
+  styleHeight = "480px",
+  onFeatureClick,
+  tileUrl = "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+  tileAttribution = "&copy; OpenStreetMap contributors",
 }) {
-  const ref = useRef(null);
-  const [ready, setReady] = useState(false);
+  const [RL, setRL] = useState(null);
 
+  // Load react-leaflet (and CSS) only on client
   useEffect(() => {
-    let map;
-    let alive = true;
-
+    let mounted = true;
     (async () => {
-      if (typeof window === "undefined") return;
-
-      // Import Leaflet ESM directly from CDN (CORS-enabled)
-      const mod = await import("https://unpkg.com/leaflet@1.9.4/dist/leaflet-src.esm.js");
-      const L = mod.default || mod;
-
-      // Ensure default marker icons resolve (optional; index.html already links leaflet.css)
-      L.Icon.Default.mergeOptions({
-        iconRetinaUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
-        iconUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
-        shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
-      });
-
-      if (!alive || !ref.current) return;
-
-      map = L.map(ref.current, { center, zoom, preferCanvas: true });
-      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-        attribution: "&copy; OpenStreetMap contributors",
-        maxZoom: 19,
-      }).addTo(map);
-
-      setReady(true);
-
-      // (Optional) example marker to verify map is interactive:
-      // L.marker(center).addTo(map).bindPopup("Texas").openPopup();
+      // load CSS and react-leaflet in parallel
+      await Promise.all([
+        import("leaflet/dist/leaflet.css"),
+        import("react-leaflet").then((m) => { if (mounted) setRL(m); }),
+      ]);
     })();
+    return () => { mounted = false; };
+  }, []);
 
-    return () => {
-      alive = false;
-      try { map && map.remove(); } catch {}
-    };
-  }, [center[0], center[1], zoom]);
+  const features = useMemo(() => {
+    return data || geojson || districts || null;
+  }, [data, geojson, districts]);
+
+  const handleEachFeature = useCallback((feature, layer) => {
+    if (!feature || !layer) return;
+    // tooltip on hover
+    const name =
+      feature?.properties?.name ||
+      feature?.properties?.DISTNAME ||
+      feature?.properties?.DISTRICT_N ||
+      feature?.properties?.district_name ||
+      "District";
+
+    try { layer.bindTooltip(String(name), { sticky: true }); } catch {}
+
+    // click → bubble up
+    if (onFeatureClick) {
+      layer.on("click", () => onFeatureClick(feature, layer));
+    }
+  }, [onFeatureClick]);
+
+  // Don’t render until libs are loaded
+  if (!RL) return null;
+
+  const { MapContainer, TileLayer, GeoJSON } = RL;
 
   return (
-    <div
-      ref={ref}
-      className={className}
-      style={{
-        height,
-        borderRadius: 12,
-        background: "#f8fafc",
-        outline: ready ? "none" : "1px dashed #e2e8f0",
-      }}
-    />
+    <div style={{ height: styleHeight, width: "100%" }}>
+      <MapContainer
+        center={center}
+        zoom={zoom}
+        scrollWheelZoom
+        style={{ height: "100%", width: "100%", background: "#f7fafc" }}
+      >
+        <TileLayer url={tileUrl} attribution={tileAttribution} />
+        {features ? (
+          <GeoJSON
+            data={features}
+            onEachFeature={handleEachFeature}
+            style={() => ({
+              color: "#2563eb",
+              weight: 1,
+              fillOpacity: 0.15,
+            })}
+          />
+        ) : null}
+      </MapContainer>
+    </div>
   );
 }
