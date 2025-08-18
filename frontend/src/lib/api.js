@@ -1,55 +1,101 @@
 // frontend/src/lib/api.js
-// Resolves the API base (Render backend proxied through Vercel, or /api)
+
+// Resolve API base. Prefer window.ENV_API_BASE (set by HTML), then Vite, then /api proxy.
 const API_BASE =
   (typeof window !== "undefined" && window.ENV_API_BASE) ||
   (import.meta?.env?.VITE_API_BASE) ||
   "/api";
 
-async function get(path, opts = {}) {
-  const url = path.startsWith("http") ? path : `${API_BASE}${path}`;
+// Generic GET with JSON parse
+async function getOnce(url, opts = {}) {
   const res = await fetch(url, { credentials: "omit", ...opts });
-  if (!res.ok) {
-    const text = await res.text().catch(() => "");
-    throw new Error(`GET ${url} -> ${res.status} ${text}`);
+  if (!res.ok) throw new Error(`${res.status} ${url}`);
+  const ct = res.headers.get("content-type") || "";
+  return ct.includes("application/json") || ct.includes("geo+json")
+    ? res.json()
+    : res.text();
+}
+
+// Try a list of candidate URLs and return the first successful JSON/GeoJSON
+async function tryMany(candidates) {
+  const errors = [];
+  for (const make of candidates) {
+    const url = make();
+    try {
+      const data = await getOnce(url);
+      return data;
+    } catch (e) {
+      errors.push(`${e.message}`);
+    }
   }
-  return res.json();
+  throw new Error(`All candidates failed:\n${errors.join("\n")}`);
 }
 
-/** Lightweight districts GeoJSON with simplified geometry + properties */
+/** Lightweight districts GeoJSON with properties (preferred) */
 export async function geoDistrictProps() {
-  // Expected backend route: GET /geo/districts.props
-  return get("/geo/districts.props");
+  return tryMany([
+    // Newer API (Render/Vercel function)
+    () => `${API_BASE}/geo/districts.props`,
+    // Alt API shapes
+    () => `${API_BASE}/geojson/districts.props`,
+    // Static public fallbacks
+    () => `/geojson/districts.props.geojson`,
+    () => `/data/processed/geo/districts.props.geojson`,
+    // Last resort: full districts (heavier)
+    () => `${API_BASE}/geo/districts`,
+    () => `/geojson/districts`,
+  ]);
 }
 
-/** Full-resolution district geometries (use on district detail) */
+/** Full-resolution districts (use on detail pages, not home) */
 export async function geoDistrictsFull() {
-  // Expected backend route: GET /geo/districts
-  return get("/geo/districts");
+  return tryMany([
+    () => `${API_BASE}/geo/districts`,
+    () => `/geojson/districts`,
+  ]);
 }
 
-/** Campus points as GeoJSON FeatureCollection */
+/** Campus points (FeatureCollection) */
 export async function campusPoints() {
-  // Expected backend route: GET /points/campuses
-  return get("/points/campuses");
+  return tryMany([
+    () => `${API_BASE}/points/campuses`,
+    () => `/geo/points/campuses.geojson`,
+    () => `/data/processed/geo/campuses.points.geojson`,
+  ]);
 }
 
-/** Statewide summary numbers/cards */
+/** Statewide summary cards */
 export async function stateStats() {
-  // Expected backend route: GET /stats/state
-  return get("/stats/state");
+  return tryMany([
+    () => `${API_BASE}/stats/state`,
+    () => `${API_BASE}/summary/state`,
+    () => `/summary/state`,
+    () => `/stats/state.json`,
+  ]);
 }
 
-/** District summary for cards/tables */
+/** District summary */
 export async function districtSummary(id) {
-  return get(`/summary/district/${encodeURIComponent(id)}`);
+  const safe = encodeURIComponent(id);
+  return tryMany([
+    () => `${API_BASE}/summary/district/${safe}`,
+    () => `/summary/district/${safe}.json`,
+  ]);
 }
 
-/** Campus summary for cards/tables */
+/** Campus summary */
 export async function campusSummary(id) {
-  return get(`/summary/campus/${encodeURIComponent(id)}`);
+  const safe = encodeURIComponent(id);
+  return tryMany([
+    () => `${API_BASE}/summary/campus/${safe}`,
+    () => `/summary/campus/${safe}.json`,
+  ]);
 }
 
-/** Optional server-side search (not required if using client-only search) */
+/** Optional server-side search */
 export async function search(q) {
-  return get(`/search?q=${encodeURIComponent(q)}`);
+  const s = encodeURIComponent(q || "");
+  return tryMany([
+    () => `${API_BASE}/search?q=${s}`,
+  ]);
 }
