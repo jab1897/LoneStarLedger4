@@ -2,11 +2,11 @@ import React from "react";
 import { BrowserRouter, Routes, Route, Link } from "react-router-dom";
 
 import Home from "./pages/Home.jsx";
-import MapPage from "./pages/MapPage.jsx";           // keep if you use it
-import DistrictPage from "./pages/DistrictPage.jsx"; // or DistrictDetail.jsx in your repo
-import CampusPage from "./pages/CampusPage.jsx";     // or CampusDetail.jsx
+import MapPage from "./pages/MapPage.jsx";           // keep or remove if unused
+import DistrictPage from "./pages/DistrictPage.jsx"; // adjust to your actual file name (e.g., DistrictDetail.jsx)
+import CampusPage from "./pages/CampusPage.jsx";     // adjust to your actual file name (e.g., CampusDetail.jsx)
 import Contact from "./pages/Contact.jsx";
-import ErrorBoundary from "./shell/ErrorBoundary.jsx";
+import ErrorBoundary from "./shell/ErrorBoundary";   // <— NO extension
 
 export default function App() {
   return (
@@ -23,7 +23,6 @@ export default function App() {
           </div>
         </header>
 
-        {/* Pages render their own content (including any hero). */}
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/map" element={<MapPage />} />
