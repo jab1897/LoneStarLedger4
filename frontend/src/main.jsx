@@ -1,34 +1,19 @@
 import React from 'react'
 import { createRoot } from 'react-dom/client'
+import App from './App.jsx'
 import './styles.css'
+import GlobalErrorBoundary from './components/GlobalErrorBoundary'
 
-function show(msg){
-  const el = document.getElementById('fatal')
-  if (el){ el.textContent = msg; el.style.display = 'block' }
-}
-function hide(){
-  const el = document.getElementById('fatal')
-  if (el){ el.style.display = 'none' }
+// surface prod errors in console too
+if (typeof window !== 'undefined'){
+  window.addEventListener('error', (e)=>console.error('window.onerror', e.error || e.message))
+  window.addEventListener('unhandledrejection', (e)=>console.error('unhandledrejection', e.reason))
 }
 
-// show a message immediately (in case JS loads but React hasn't mounted yet)
-show('Loading app…')
-
-async function bootstrap(){
-  try {
-    const mod = await import('./App.jsx') // dynamic import so errors are catchable
-    const App = mod.default
-    const root = createRoot(document.getElementById('root'))
-    root.render(
-      <React.StrictMode>
-        <App />
-      </React.StrictMode>
-    )
-    hide()
-  } catch (e) {
-    console.error('Boot error:', e)
-    show('Boot error: ' + (e?.message || String(e)))
-  }
-}
-
-bootstrap()
+createRoot(document.getElementById('root')).render(
+  <React.StrictMode>
+    <GlobalErrorBoundary>
+      <App />
+    </GlobalErrorBoundary>
+  </React.StrictMode>
+)

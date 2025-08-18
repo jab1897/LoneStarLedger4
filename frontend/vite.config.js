@@ -3,9 +3,5 @@ import react from '@vitejs/plugin-react'
 
 export default defineConfig({
   plugins: [react()],
-})
-
-export default defineConfig({
-  plugins: [react()],
-  build: { sourcemap: true }
+  base: '/', // ensure correct asset urls on Vercel
 })
