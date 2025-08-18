@@ -1,33 +1,48 @@
-import React from 'react'
-import AsyncSelect from 'react-select/async'
-import { api } from '../api'
+import React, { useEffect, useMemo, useState } from "react";
+import * as api from "../api";
 
-const styles = {
-  control: (base)=>({ ...base, minWidth: 280, borderRadius: 10, borderColor:'#d7ddea' }),
-  option: (base)=>({ ...base, fontSize: 13 }),
-}
+export default function SearchBox() {
+  const [items, setItems] = useState([]);   // districts + campuses combined
+  const [q, setQ] = useState("");
+  const [err, setErr] = useState("");
 
-export default function SearchBar({ onPick }) {
-  async function loadOptions(inputValue) {
-    if (!inputValue || inputValue.length < 2) return []
-    const [d, s] = await Promise.all([
-      api.searchDistricts(inputValue, 7),
-      api.searchSchools(inputValue, 7),
-    ])
-    const dOpts = d.items.map(x=>({ label: `District: ${x.district_name}`, value: x.district_6, kind:'district', raw:x }))
-    const sOpts = s.items.map(x=>({ label: `School: ${x.campus_name}`, value: x.campus_9, kind:'school', raw:x }))
-    return [...dOpts, ...sOpts]
-  }
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const campuses = await api.campusPoints().catch(() => []);
+        // If you have a district name list, load it here; otherwise just campuses
+        const combined = campuses || [];
+        if (!cancelled) setItems(combined);
+      } catch (e) {
+        console.error("SearchBox data load failed", e);
+        if (!cancelled) setErr("Search data is temporarily unavailable.");
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
+  const filtered = useMemo(() => {
+    const s = q.trim().toLowerCase();
+    if (!s) return [];
+    return items.filter(it => (it.name || it.CAMPUS || it.DISTNAME || "")
+      .toLowerCase().includes(s)).slice(0, 20);
+  }, [q, items]);
 
   return (
-    <AsyncSelect
-      cacheOptions
-      defaultOptions={false}
-      placeholder="Search district or school..."
-      loadOptions={loadOptions}
-      styles={styles}
-      onChange={(opt)=> opt && onPick({ type: opt.kind, data: opt.raw })}
-      aria-label="search"
-    />
-  )
+    <div style={{ maxWidth: 520 }}>
+      <input
+        type="search"
+        placeholder="Search district or campus"
+        value={q}
+        onChange={(e) => setQ(e.target.value)}
+        className="input"
+      />
+      {err && <div className="text-muted" style={{ marginTop: 6 }}>{err}</div>}
+      {q && !filtered.length && !err && (
+        <div className="text-muted" style={{ marginTop: 6 }}>No matches.</div>
+      )}
+      {/* render suggestions dropdown here if you like */}
+    </div>
+  );
 }
