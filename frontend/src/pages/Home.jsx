@@ -1,98 +1,95 @@
-import { useEffect, useState } from "react";
-import { MapContainer, TileLayer, GeoJSON } from "react-leaflet";
+// frontend/src/pages/Home.jsx
+import React, { useEffect, useState } from "react";
+import { MapContainer, TileLayer } from "react-leaflet";
 import { useNavigate } from "react-router-dom";
-import { api } from "../api";
 
-// Property helpers (backend field names can vary)
-const distId = (p) => p?.district_id ?? p?.DIST_ID ?? p?.id ?? p?.GEOID ?? null;
-const distName = (p) => p?.name ?? p?.district_name ?? p?.NAME ?? "District";
+import DistrictLayer from "../components/DistrictLayer";
+import SearchBox from "../components/SearchBox"; // you said this is already added
+import * as api from "../lib/api";
 
 export default function Home() {
-  const [propsGeo, setPropsGeo] = useState(null);
-  const [err, setErr] = useState(null);
   const nav = useNavigate();
 
+  const [districts, setDistricts] = useState(null);
+  const [hoverId, setHoverId] = useState(null);
+  const [error, setError] = useState(null);
+
   useEffect(() => {
-    let dead = false;
+    let cancelled = false;
     (async () => {
       try {
-        const data = await api.districtsProps();
-        if (!dead) setPropsGeo(data);
+        const d = await api.geoDistrictProps();
+        if (!cancelled) setDistricts(d);
       } catch (e) {
-        if (!dead) setErr(e);
+        console.error(e);
+        if (!cancelled) setError("We couldn’t load district boundaries.");
       }
     })();
-    return () => { dead = true; };
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
-  const onEach = (feature, layer) => {
-    const p = feature?.properties || {};
-    const id = distId(p);
-    layer.bindTooltip(distName(p), { sticky: true });
-    layer.on("click", () => id && nav(`/district/${encodeURIComponent(id)}`));
-  };
+  function onFeatureClick(feature) {
+    const props = feature?.properties || {};
+    const id =
+      props.id ||
+      props.district_id ||
+      props.DISTRICT_ID ||
+      props.LEAID ||
+      props.GEOID ||
+      feature.id;
+
+    if (id != null) {
+      nav(`/district/${encodeURIComponent(id)}`);
+    }
+  }
 
   return (
-    <>
-      <div className="card">
-        <h3>Texas District Map</h3>
-        {err && (
-          <div className="card" style={{ background:"#fee", color:"#900" }}>
-            Map data failed to load: {String(err.message || err)}
-          </div>
+    <main>
+      {/* Hero / Intro */}
+      <section className="hero" style={{ padding: "28px 0 16px" }}>
+        <h1 style={{ marginBottom: 10 }}>K-12 finance &amp; accountability</h1>
+        <p style={{ marginBottom: 12, maxWidth: 920 }}>
+          Transparent, statewide look at district spending, student performance, and staffing.
+          Search by district or campus, hover the map to see district names, and click a district to drill into details.
+        </p>
+
+        {/* Search input (districts + campuses) */}
+        <SearchBox />
+      </section>
+
+      {/* Map Card */}
+      <section className="card" style={{ marginTop: 18 }}>
+        <h2 style={{ marginBottom: 10 }}>Texas District Map</h2>
+
+        {error ? (
+          <div className="alert error">{error}</div>
+        ) : (
+          <MapContainer
+            center={[31.0, -99.0]}
+            zoom={6}
+            style={{ height: "540px", width: "100%", borderRadius: 12, overflow: "hidden" }}
+            scrollWheelZoom={true}
+          >
+            <TileLayer
+              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+            />
+
+            {districts && (
+              <DistrictLayer
+                data={districts}
+                hoverId={hoverId}
+                onHover={setHoverId}
+                onClick={onFeatureClick}
+              />
+            )}
+          </MapContainer>
         )}
-        <MapContainer center={[31.2, -99.3]} zoom={6} className="leaflet-container" scrollWheelZoom>
-          <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-            attribution="&copy; OpenStreetMap contributors" />
-          {propsGeo && <GeoJSON data={propsGeo} onEachFeature={onEach} />}
-        </MapContainer>
-      </div>
+      </section>
 
-      <div className="card">
-        <h3>Statewide snapshot</h3>
-        <StatewideStats />
-      </div>
-    </>
-  );
-}
-
-function StatewideStats(){
-  const [data, setData] = useState(null);
-  const [err, setErr] = useState(null);
-
-  useEffect(() => {
-    let dead = false;
-    (async () => {
-      try {
-        const s = await api.state();
-        if (!dead) setData(s);
-      } catch (e) {
-        if (!dead) setErr(e);
-      }
-    })();
-    return () => { dead = true; };
-  }, []);
-
-  if (err) return <div style={{color:"#900"}}>Failed to load: {String(err.message || err)}</div>;
-  if (!data) return <div>Loading…</div>;
-
-  const fmt = (n, d = 0) => n == null ? "—" : (+n).toLocaleString(undefined, { maximumFractionDigits: d });
-
-  return (
-    <div style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:12 }}>
-      <StatCard label="Districts" value={fmt(data.districts)} />
-      <StatCard label="Enrollment" value={fmt(data.enrollment)} />
-      <StatCard label="Total Spend" value={"$" + fmt(data.total_spend)} />
-      <StatCard label="Avg Per-Pupil" value={"$" + fmt(data.avg_per_pupil, 0)} />
-    </div>
-  );
-}
-
-function StatCard({label, value}){
-  return (
-    <div className="card" style={{margin:0}}>
-      <div style={{color:"#6b7280", fontSize:13}}>{label}</div>
-      <div style={{fontSize:28, fontWeight:700}}>{value}</div>
-    </div>
+      {/* (Optional) State snapshot section can go here once wired to api.stateStats() */}
+    </main>
   );
 }
