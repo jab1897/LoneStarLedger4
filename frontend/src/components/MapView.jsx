@@ -1,63 +1,67 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 
 /**
- * Minimal, module-safe MapView.
- * - Loads leaflet & react-leaflet with dynamic ESM imports (no `require`)
- * - Renders a base map only to guarantee runtime stability
- * - We’ll progressively add districts/campuses (and clustering) after confirming this deploy
+ * Pure Leaflet map (no React-Leaflet)
+ * - Loads Leaflet as a real ESM module from CDN (no CommonJS/require at all)
+ * - Works in the browser-only environment; lazily imported page-safe
  */
-export default function MapView({ height = 520, center=[31.0, -99.0], zoom=6 }) {
-  const [mods, setMods] = useState(null);
+export default function MapView({
+  height = 520,
+  center = [31.0, -99.0],
+  zoom = 6,
+  className = "",
+}) {
+  const ref = useRef(null);
+  const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    let mounted = true;
+    let map;
+    let alive = true;
+
     (async () => {
-      // Load only in browser
       if (typeof window === "undefined") return;
 
-      // Dynamic ESM imports; keep the bundle SSR-safe and avoid CommonJS `require`
-      const RL = await import("react-leaflet");
-      const Lmod = await import("leaflet");
-      // Ensure Leaflet default icon URLs work when bundling (optional; index.html already has leaflet.css)
-      // await import("leaflet/dist/leaflet.css");
+      // Import Leaflet ESM directly from CDN (CORS-enabled)
+      const mod = await import("https://unpkg.com/leaflet@1.9.4/dist/leaflet-src.esm.js");
+      const L = mod.default || mod;
 
-      // Fix missing marker icons in some bundlers (optional safeguard)
-      const L = Lmod.default || Lmod;
-      if (L && L.Icon && L.Icon.Default) {
-        const iconRetina = "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png";
-        const icon = "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png";
-        const shadow = "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png";
-        L.Icon.Default.mergeOptions({ iconRetinaUrl: iconRetina, iconUrl: icon, shadowUrl: shadow });
-      }
+      // Ensure default marker icons resolve (optional; index.html already links leaflet.css)
+      L.Icon.Default.mergeOptions({
+        iconRetinaUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
+        iconUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
+        shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
+      });
 
-      if (mounted) {
-        setMods({
-          MapContainer: RL.MapContainer,
-          TileLayer: RL.TileLayer
-        });
-      }
+      if (!alive || !ref.current) return;
+
+      map = L.map(ref.current, { center, zoom, preferCanvas: true });
+      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        attribution: "&copy; OpenStreetMap contributors",
+        maxZoom: 19,
+      }).addTo(map);
+
+      setReady(true);
+
+      // (Optional) example marker to verify map is interactive:
+      // L.marker(center).addTo(map).bindPopup("Texas").openPopup();
     })();
-    return () => { mounted = false; };
-  }, []);
 
-  if (!mods) {
-    return <div style={{ height, background: "#f8fafc", borderRadius: 12 }} />;
-  }
-
-  const { MapContainer, TileLayer } = mods;
+    return () => {
+      alive = false;
+      try { map && map.remove(); } catch {}
+    };
+  }, [center[0], center[1], zoom]);
 
   return (
-    <MapContainer
-      style={{ height, borderRadius: 12 }}
-      center={center}
-      zoom={zoom}
-      scrollWheelZoom
-    >
-      <TileLayer
-        attribution='&copy; OpenStreetMap contributors'
-        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-      />
-      {/* TODO: after confirming stability, add districts/campuses layers & clustering again */}
-    </MapContainer>
+    <div
+      ref={ref}
+      className={className}
+      style={{
+        height,
+        borderRadius: 12,
+        background: "#f8fafc",
+        outline: ready ? "none" : "1px dashed #e2e8f0",
+      }}
+    />
   );
 }
