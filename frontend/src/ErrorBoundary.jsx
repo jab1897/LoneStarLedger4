@@ -1,17 +1,21 @@
 import React from "react";
 
 export default class ErrorBoundary extends React.Component {
-  constructor(props){ super(props); this.state = { hasError: false, err: null }; }
-  static getDerivedStateFromError(error){ return { hasError: true, err: error }; }
-  componentDidCatch(error, info){ console.error("[LSL] ErrorBoundary", error, info); }
+  constructor(props){ super(props); this.state = { hasError:false, error:null }; }
+  static getDerivedStateFromError(error){ return { hasError:true, error }; }
+  componentDidCatch(err, info){ console.error("ErrorBoundary", err, info); }
+
   render(){
-    if(!this.state.hasError) return this.props.children;
+    if (!this.state.hasError) return this.props.children;
     return (
-      <div className="card" style={{background:"#fee", borderColor:"#f4c"}}>
-        <h3>Something went wrong</h3>
-        <pre>{String(this.state.err?.message || this.state.err || "Unknown error")}</pre>
-        <button onClick={() => location.reload()}>Reload</button>
-      </div>
+      <main className="container">
+        <div className="card alert error">
+          <h3>Something went wrong</h3>
+          <div style={{whiteSpace:"pre-wrap",fontFamily:"ui-monospace,Consolas,monospace",fontSize:13}}>
+            {String(this.state.error?.message || this.state.error || "Unknown error")}
+          </div>
+        </div>
+      </main>
     );
   }
 }
