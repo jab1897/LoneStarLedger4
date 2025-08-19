@@ -1,10 +1,12 @@
-// frontend/src/pages/Contact.jsx
 import React from "react";
+
 export default function Contact(){
   return (
-    <div>
-      <h1>Contact</h1>
-      <p>Questions or feedback? Email <a href="mailto:borrego.jorge1897@gmail.com">borrego.jorge1897@gmail.com</a>.</p>
-    </div>
+    <main className="container">
+      <section className="card">
+        <h2>Contact</h2>
+        <p>Questions or ideas? Email <a href="mailto:you@example.com">you@example.com</a>.</p>
+      </section>
+    </main>
   );
 }
