@@ -1,12 +1,19 @@
 // frontend/src/lib/api.js
-// Named exports only (avoid default) to fix "default is not exported" build errors.
+// Named exports only (no default). Safe env detection for both dev and build.
+
+const envBackend = (() => {
+  try {
+    // import.meta is valid in ESM; optional chaining keeps this safe in tooling
+    return import.meta?.env?.VITE_BACKEND_URL;
+  } catch {
+    return undefined;
+  }
+})();
 
 const BASE =
-  (typeof import !== "undefined" &&
-    typeof import.meta !== "undefined" &&
-    import.meta.env &&
-    import.meta.env.VITE_BACKEND_URL) ||
-  "https://lonestarledger2-0.onrender.com"; // fallback; change if needed
+  (typeof window !== "undefined" && window.ENV_BACKEND_URL) ||
+  envBackend ||
+  "https://lonestarledger2-0.onrender.com"; // fallback; adjust if needed
 
 async function _json(url) {
   const r = await fetch(url);
@@ -30,15 +37,15 @@ export const listSchools = (limit = 50, offset = 0, q) => {
 };
 
 // --- Single records ---
-export const getDistrict = (id) => _json(`${BASE}/district/${encodeURIComponent(id)}`);
-export const getSchool = (id) => _json(`${BASE}/school/${encodeURIComponent(id)}`);
+export const getDistrict = (id) =>
+  _json(`${BASE}/district/${encodeURIComponent(id)}`);
 
-// --- Geo endpoints ---
-// Simplified districts with {district_6, name} in properties
+export const getSchool = (id) =>
+  _json(`${BASE}/school/${encodeURIComponent(id)}`);
+
+// --- Geo & lightweight points ---
 export const geoDistrictProps = () => _json(`${BASE}/geojson/districts`);
-
-// Lightweight campus points: [{id, campus_name, district_6, lat, lon, ...}]
 export const campusPoints = () => _json(`${BASE}/campus_points`);
 
-// expose BASE (handy for linking to API)
+// Expose base for links/debugging
 export const apiBase = BASE;
