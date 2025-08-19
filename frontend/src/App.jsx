@@ -1,43 +1,41 @@
 import React from "react";
-import { BrowserRouter, Routes, Route, Link } from "react-router-dom";
-
+import { Routes, Route, NavLink } from "react-router-dom";
 import Home from "./pages/Home.jsx";
-import MapPage from "./pages/MapPage.jsx";           // keep or remove if unused
-import DistrictPage from "./pages/DistrictPage.jsx"; // adjust to your actual file name (e.g., DistrictDetail.jsx)
-import CampusPage from "./pages/CampusPage.jsx";     // adjust to your actual file name (e.g., CampusDetail.jsx)
+import DistrictPage from "./pages/DistrictPage.jsx";
+import CampusPage from "./pages/CampusPage.jsx";
 import Contact from "./pages/Contact.jsx";
-import ErrorBoundary from "./shell/ErrorBoundary";   // <— NO extension
+import ErrorBoundary from "./shell/ErrorBoundary.jsx";
+
+function Navbar() {
+  return (
+    <nav className="nav">
+      <div className="container nav-inner">
+        <div className="brand">LoneStarLedger</div>
+        <NavLink to="/" end>Home</NavLink>
+        <NavLink to="/map">Map</NavLink>
+        <NavLink to="/contact">Contact</NavLink>
+      </div>
+    </nav>
+  );
+}
 
 export default function App() {
   return (
-    <BrowserRouter>
+    <>
+      <Navbar />
       <ErrorBoundary>
-        <header className="navbar">
-          <div className="container">
-            <div className="brand">LoneStarLedger</div>
-            <nav>
-              <Link to="/">Home</Link>
-              <Link to="/map">Map</Link>
-              <Link to="/contact">Contact</Link>
-            </nav>
-          </div>
-        </header>
-
         <Routes>
           <Route path="/" element={<Home />} />
-          <Route path="/map" element={<MapPage />} />
+          <Route path="/map" element={<Home />} />
           <Route path="/district/:id" element={<DistrictPage />} />
-          <Route path="/campus/:id" element={<CampusPage />} />
+          <Route path="/district/:id/campus/:campusId" element={<CampusPage />} />
           <Route path="/contact" element={<Contact />} />
           <Route path="*" element={<Home />} />
         </Routes>
-
-        <footer className="site-footer">
-          <div className="container">
-            Texas K-12 finance &amp; accountability · Prototype 2.0
-          </div>
-        </footer>
       </ErrorBoundary>
-    </BrowserRouter>
+      <footer className="footer">
+        Texas K-12 finance & accountability · <a href="https://github.com/jab1897/LoneStarLedger4" target="_blank" rel="noreferrer">Prototype</a>
+      </footer>
+    </>
   );
 }
