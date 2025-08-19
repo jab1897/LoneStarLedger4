@@ -1,55 +1,16 @@
-@import "leaflet/dist/leaflet.css";
-
+/* Minimal reset + variables */
 :root {
-  --bg: #0b2d4a;
-  --bg-soft: #0f3b62;
-  --fg: #0a2540;
-  --ink: #0d1726;
-  --muted: #6b7280;
-  --panel: #f6f7fb;
+  --bg: #0a2540;
+  --bg2: #10395e;
+  --text: #0b1220;
+  --muted: #5e6a7a;
+  --brand: #0ea5e9;
   --card: #ffffff;
-  --brand: #0b6efd;
+  --border: #e6e8ec;
 }
-
 * { box-sizing: border-box; }
 html, body, #root { height: 100%; margin: 0; }
-body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; color: var(--ink); background: #f4f6f8; }
+body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; color: var(--text); background: #f5f7fb; }
 
-.navbar {
-  background: var(--bg);
-  color: #fff;
-  position: sticky;
-  top: 0;
-  z-index: 20;
-}
-.nav {
-  margin: 0 auto; max-width: 1200px; display: flex; align-items: center; gap: 24px;
-  padding: 16px 20px;
-}
-.brand { font-weight: 800; font-size: 20px; letter-spacing: .2px; }
-.nav a {
-  color: #d7e6f7; text-decoration: none; padding: 8px 10px; border-radius: 8px;
-}
-.nav a.active, .nav a:hover { background: rgba(255,255,255,.12); color: #fff; }
-
-.hero {
-  background: linear-gradient(180deg, var(--bg) 0%, var(--bg-soft) 100%);
-  color: #fff;
-}
-.hero-inner { margin: 0 auto; max-width: 1200px; padding: 28px 20px 22px; }
-.hero h1 { margin: 0 0 6px 0; font-size: 32px; }
-.hero p { margin: 0; color: #def; max-width: 860px; }
-
-.container { margin: 0 auto; max-width: 1200px; padding: 18px 20px; }
-
-.card {
-  background: var(--card); border: 1px solid #e8edf4; border-radius: 14px;
-  padding: 14px; margin-bottom: 16px; box-shadow: 0 2px 10px rgba(2,13,32,0.04);
-}
-
-.leaflet-container {
-  height: 540px; width: 100%; border-radius: 12px;
-}
-
-.footer { text-align: center; color: var(--muted); padding: 28px 0 48px; }
-.badge { display: inline-block; font-size: 12px; padding: 4px 8px; border-radius: 999px; background: #eef2ff; color: #3749a9; }
+/* Layout helpers */
+.container { max-width: 1200px; margin
