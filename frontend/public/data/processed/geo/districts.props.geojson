@@ -1,0 +1,16 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": { "id": "TEST-001", "name": "Sample ISD" },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[
+          [-100.5, 31.5], [-100.0, 31.5], [-100.0, 31.0],
+          [-100.5, 31.0], [-100.5, 31.5]
+        ]]
+      }
+    }
+  ]
+}
