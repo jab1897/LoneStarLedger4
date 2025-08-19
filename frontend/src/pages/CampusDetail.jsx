@@ -1,9 +1,9 @@
-// frontend/src/pages/DistrictDetail.jsx
+// frontend/src/pages/CampusDetail.jsx
 import React, { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import * as api from "../lib/api";
 
-export default function DistrictDetail() {
+export default function CampusDetail() {
   const { id } = useParams();
   const [data, setData] = useState(null);
   const [err, setErr] = useState(null);
@@ -12,11 +12,18 @@ export default function DistrictDetail() {
     let cancel = false;
     (async () => {
       try {
-        const d = await api.getDistrict(id);
-        if (!cancel) setData(d);
+        // Prefer dedicated endpoint if available; fallback to list filter:
+        try {
+          const s = await api.getSchool(id);
+          if (!cancel) setData(s);
+        } catch {
+          const list = await api.listSchools(1, 0, id);
+          const item = (list.items || [])[0];
+          if (!cancel) setData(item);
+        }
       } catch (e) {
         console.error(e);
-        if (!cancel) setErr("Couldn’t load district details.");
+        if (!cancel) setErr("Couldn’t load campus details.");
       }
     })();
     return () => { cancel = true; };
@@ -25,77 +32,37 @@ export default function DistrictDetail() {
   if (err) return <main className="container"><div className="alert error">{err}</div></main>;
   if (!data) return <main className="container"><div className="spinner" /></main>;
 
-  const d = data || {};
+  const c = data || {};
   return (
     <main className="container">
       <section className="hero" style={{ padding: "20px 0 10px" }}>
-        <h1 style={{ marginBottom: 8 }}>{d.district_name || d.name || id}</h1>
+        <h1 style={{ marginBottom: 8 }}>{c.campus_name || c.name || id}</h1>
         <p style={{ margin: 0, color: "#506080" }}>
-          Enrollment: {Number(d.enrollment || 0).toLocaleString()} •
-          &nbsp;Per-pupil: ${Number(d.per_pupil_spend || 0).toLocaleString()} •
-          &nbsp;Total spend: ${Number(d.total_spend || 0).toLocaleString()}
+          District: {c.district_name || c.district_6 || "—"} •
+          &nbsp;Reading on-grade: {c.reading_on_grade ?? "—"}% •
+          &nbsp;Math on-grade: {c.math_on_grade ?? "—"}%
         </p>
       </section>
 
       <section className="card" style={{ marginTop: 16 }}>
-        <h2>Campuses</h2>
-        <DistrictCampuses districtId={d.district_6 || id} />
+        <h2>Performance Snapshot</h2>
+        <ul style={{ margin: 0, paddingLeft: 18 }}>
+          <li>Accountability grade: {c.accountability || c.grade || "—"}</li>
+          <li>Enrollment: {Number(c.enrollment || 0).toLocaleString()}</li>
+          <li>Principal: {c.principal || "—"}</li>
+          <li>Contact: {c.phone || "—"} • {c.address || "—"}</li>
+        </ul>
       </section>
 
       <div style={{ marginTop: 16 }}>
-        <Link to="/" className="btn">← Back to Statewide</Link>
+        {c.district_6 && (
+          <Link to={`/district/${encodeURIComponent(c.district_6)}`} className="btn">
+            ← Back to District
+          </Link>
+        )}
+        &nbsp;&nbsp;
+        <Link to="/" className="btn alt">Statewide</Link>
       </div>
     </main>
-  );
-}
-
-function DistrictCampuses({ districtId }) {
-  const [rows, setRows] = useState(null);
-  const [err, setErr] = useState(null);
-
-  useEffect(() => {
-    let cancel = false;
-    (async () => {
-      try {
-        // lightweight points list then filter by district_6
-        const pts = await api.campusPoints();
-        const filtered = (pts || []).filter((p) => String(p.district_6) === String(districtId));
-        if (!cancel) setRows(filtered);
-      } catch (e) {
-        console.error(e);
-        if (!cancel) setErr("Couldn’t load campuses.");
-      }
-    })();
-    return () => { cancel = true; };
-  }, [districtId]);
-
-  if (err) return <div className="alert error">{err}</div>;
-  if (!rows) return <div className="spinner" />;
-
-  return (
-    <div className="table-wrap">
-      <table className="table">
-        <thead>
-          <tr>
-            <th>Campus</th>
-            <th>Level</th>
-            <th>Accountability</th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((r) => (
-            <tr key={r.id || r.campus_9}>
-              <td>
-                <Link to={`/campus/${encodeURIComponent(r.id || r.campus_9)}`}>
-                  {r.campus_name || r.name || r.campus_9}
-                </Link>
-              </td>
-              <td>{r.level || r.campus_type || "—"}</td>
-              <td>{r.accountability || r.grade || "—"}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
   );
 }
