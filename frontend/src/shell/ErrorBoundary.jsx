@@ -1,38 +1,25 @@
+// frontend/src/shell/ErrorBoundary.jsx
 import React from "react";
 
 export default class ErrorBoundary extends React.Component {
   constructor(props) {
     super(props);
-    this.state = { hasError: false, message: "" };
+    this.state = { hasError: false, error: null };
   }
-
-  static getDerivedStateFromError(err) {
-    return { hasError: true, message: err?.message || "An unexpected error occurred." };
+  static getDerivedStateFromError(error) {
+    return { hasError: true, error };
   }
-
   componentDidCatch(error, info) {
-    // eslint-disable-next-line no-console
-    console.error("ErrorBoundary caught:", error, info);
+    console.error("ErrorBoundary caught", error, info);
   }
-
   render() {
     if (this.state.hasError) {
       return (
-        <main className="container" style={{ padding: "24px 0" }}>
-          <div className="alert error" role="alert" style={{ marginTop: 12 }}>
-            <strong>Something went wrong</strong>
-            <div style={{ marginTop: 8 }}>{this.state.message}</div>
-            <button
-              style={{ marginTop: 12 }}
-              onClick={() => {
-                this.setState({ hasError: false, message: "" });
-                // best-effort refresh to recover
-                if (typeof window !== "undefined") window.location.reload();
-              }}
-            >
-              Reload
-            </button>
-          </div>
+        <main className="container">
+          <section className="card" style={{ marginTop: 20 }}>
+            <h2>Something went wrong</h2>
+            <pre style={{ whiteSpace: "pre-wrap" }}>{String(this.state.error)}</pre>
+          </section>
         </main>
       );
     }
