@@ -1,95 +1,69 @@
-// frontend/src/pages/Home.jsx
-import React, { useEffect, useState } from "react";
-import { MapContainer, TileLayer } from "react-leaflet";
+import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-
-import DistrictLayer from "../components/DistrictLayer";
-import SearchBox from "../components/SearchBox"; // you said this is already added
 import * as api from "../lib/api";
 
-export default function Home() {
+export default function SearchBox(){
+  const [items, setItems] = useState([]);
+  const [q, setQ] = useState("");
+  const [err, setErr] = useState(null);
   const nav = useNavigate();
-
-  const [districts, setDistricts] = useState(null);
-  const [hoverId, setHoverId] = useState(null);
-  const [error, setError] = useState(null);
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      try {
-        const d = await api.geoDistrictProps();
-        if (!cancelled) setDistricts(d);
-      } catch (e) {
-        console.error(e);
-        if (!cancelled) setError("We couldn’t load district boundaries.");
+      try{
+        const ix = await api.searchIndex();
+        if (!cancelled) setItems(ix);
+      }catch(e){
+        console.error("Search index error:", e);
+        if (!cancelled) setErr("Search not available right now.");
       }
     })();
-    return () => {
-      cancelled = true;
-    };
+    return () => { cancelled = true; };
   }, []);
 
-  function onFeatureClick(feature) {
-    const props = feature?.properties || {};
-    const id =
-      props.id ||
-      props.district_id ||
-      props.DISTRICT_ID ||
-      props.LEAID ||
-      props.GEOID ||
-      feature.id;
+  const filtered = useMemo(() => {
+    const s = q.trim().toLowerCase();
+    if (!s) return items.slice(0, 8);
+    return items.filter(x => (x.name||"").toLowerCase().includes(s)).slice(0, 12);
+  }, [q, items]);
 
-    if (id != null) {
-      nav(`/district/${encodeURIComponent(id)}`);
+  function go(item){
+    if (!item) return;
+    if (item.type === "district"){
+      nav(`/district/${encodeURIComponent(item.id)}`);
+    } else if (item.type === "campus"){
+      const d = item.districtId ?? "unknown";
+      nav(`/district/${encodeURIComponent(d)}/campus/${encodeURIComponent(item.id)}`);
     }
+    setQ("");
   }
 
   return (
-    <main>
-      {/* Hero / Intro */}
-      <section className="hero" style={{ padding: "28px 0 16px" }}>
-        <h1 style={{ marginBottom: 10 }}>K-12 finance &amp; accountability</h1>
-        <p style={{ marginBottom: 12, maxWidth: 920 }}>
-          Transparent, statewide look at district spending, student performance, and staffing.
-          Search by district or campus, hover the map to see district names, and click a district to drill into details.
-        </p>
-
-        {/* Search input (districts + campuses) */}
-        <SearchBox />
-      </section>
-
-      {/* Map Card */}
-      <section className="card" style={{ marginTop: 18 }}>
-        <h2 style={{ marginBottom: 10 }}>Texas District Map</h2>
-
-        {error ? (
-          <div className="alert error">{error}</div>
-        ) : (
-          <MapContainer
-            center={[31.0, -99.0]}
-            zoom={6}
-            style={{ height: "540px", width: "100%", borderRadius: 12, overflow: "hidden" }}
-            scrollWheelZoom={true}
-          >
-            <TileLayer
-              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-            />
-
-            {districts && (
-              <DistrictLayer
-                data={districts}
-                hoverId={hoverId}
-                onHover={setHoverId}
-                onClick={onFeatureClick}
-              />
-            )}
-          </MapContainer>
-        )}
-      </section>
-
-      {/* (Optional) State snapshot section can go here once wired to api.stateStats() */}
-    </main>
+    <div className="search-wrap">
+      <input
+        placeholder="Search district or campus…"
+        value={q}
+        onChange={e=>setQ(e.target.value)}
+        list="search-datalist"
+      />
+      <datalist id="search-datalist">
+        {filtered.map((x,i)=>(
+          <option key={i} value={x.name} />
+        ))}
+      </datalist>
+      {/* click-to-go dropdown (simple) */}
+      {q && filtered.length > 0 && (
+        <div className="card" style={{position:"absolute",zIndex:500,width:520,maxWidth:"calc(100% - 40px)"}}>
+          {filtered.map((x,i)=>(
+            <div key={i} style={{padding:"6px 8px",cursor:"pointer"}} onClick={()=>go(x)}>
+              <span style={{color:"#111"}}>{x.name}</span>
+              <span style={{color:"#6b7280",marginLeft:8}}>· {x.type}</span>
+            </div>
+          ))}
+        </div>
+      )}
+      {err && <div className="alert error" style={{marginTop:8}}>{err}</div>}
+    </div>
   );
 }
