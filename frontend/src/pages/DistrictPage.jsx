@@ -1,3 +1,30 @@
+import React from "react";
+import { useParams, Link } from "react-router-dom";
+
+export default function DistrictPage(){
+  const { id } = useParams();
+  return (
+    <main className="container">
+      <section className="hero" style={{padding:"22px 0 12px",marginBottom:14}}>
+        <div className="container">
+          <h1>District: {id}</h1>
+          <p>Placeholder page. Next steps: show district profile, finance, accountability, and a campuses table.</p>
+        </div>
+      </section>
+
+      <section className="card">
+        <h2>Campuses</h2>
+        <p>When TEA endpoints are wired, list campuses for this district here.</p>
+        <p style={{marginTop:12}}>
+          Example deep link:{" "}
+          <Link to={`/district/${encodeURIComponent(id)}/campus/TEST-CAMPUS-1`}>
+            open campus TEST-CAMPUS-1
+          </Link>
+        </p>
+      </section>
+    </main>
+  );
+}
 // frontend/src/pages/DistrictPage.jsx
 import React, {useEffect,useState, useMemo} from "react";
 import { useParams } from "react-router-dom";
