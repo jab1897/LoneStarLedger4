@@ -1,15 +1,16 @@
-// frontend/src/pages/CampusPage.jsx
-import React, {useEffect,useState} from "react";
-import { useParams } from "react-router-dom";
-import api from "../api";
+import React from "react";
+import { useParams, Link } from "react-router-dom";
+
 export default function CampusPage(){
-  const { campus_9 } = useParams();
-  const [data, setData] = useState(null);
-  useEffect(()=>{ api.campus(campus_9).then(setData).catch(()=>setData(null)); },[campus_9]);
+  const { id, campusId } = useParams();
   return (
-    <div>
-      <h1>Campus {campus_9}</h1>
-      {!data ? <p>Loading…</p> : <pre style={{background:"#f7f7f7",padding:12}}>{JSON.stringify(data,null,2)}</pre>}
-    </div>
+    <main className="container">
+      <section className="card">
+        <h2>Campus: {campusId}</h2>
+        <p>District: {id}</p>
+        <p>This is a placeholder. You’ll show campus profile, outcomes, staffing, etc.</p>
+        <p style={{marginTop:12}}><Link to={`/district/${encodeURIComponent(id)}`}>Back to district</Link></p>
+      </section>
+    </main>
   );
 }
