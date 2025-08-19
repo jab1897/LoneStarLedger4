@@ -1,19 +1,39 @@
-// frontend/src/App.jsx
-import React, { Suspense } from "react";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+// src/App.jsx
+import React, { Suspense, lazy } from "react";
+import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
 import Header from "./components/Header";
-import Home from "./pages/Home";
-import DistrictDetail from "./pages/DistrictDetail";
-import CampusDetail from "./pages/CampusDetail";
-import NotFound from "./pages/NotFound";
 import ErrorBoundary from "./shell/ErrorBoundary";
+
+// Lazy-loaded pages for better initial load
+const Home = lazy(() => import("./pages/Home"));
+const DistrictDetail = lazy(() => import("./pages/DistrictDetail"));
+const CampusDetail = lazy(() => import("./pages/CampusDetail"));
+const NotFound = lazy(() => import("./pages/NotFound"));
+
+function ScrollToTop() {
+  const { pathname } = useLocation();
+  React.useEffect(() => {
+    // Scroll to top on every route change
+    window.scrollTo({ top: 0, left: 0, behavior: "instant" });
+  }, [pathname]);
+  return null;
+}
+
+function Fallback() {
+  return (
+    <div className="spinner" role="status" aria-live="polite" aria-busy="true">
+      Loading…
+    </div>
+  );
+}
 
 export default function App() {
   return (
     <BrowserRouter>
       <Header />
+      <ScrollToTop />
       <ErrorBoundary>
-        <Suspense fallback={<div className="spinner" />}>
+        <Suspense fallback={<Fallback />}>
           <Routes>
             <Route path="/" element={<Home />} />
             <Route path="/district/:id" element={<DistrictDetail />} />
