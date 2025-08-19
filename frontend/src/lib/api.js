@@ -1,51 +1,57 @@
-// frontend/src/lib/api.js
-// Named exports only (no default). Safe env detection for both dev and build.
+// frontend/src/App.jsx
+import React, { Suspense, lazy } from "react";
+import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
+import Header from "./components/Header";
+import ErrorBoundary from "./shell/ErrorBoundary";
 
-const envBackend = (() => {
-  try {
-    // import.meta is valid in ESM; optional chaining keeps this safe in tooling
-    return import.meta?.env?.VITE_BACKEND_URL;
-  } catch {
-    return undefined;
-  }
-})();
+const Home = lazy(() => import("./pages/Home"));
+const DistrictDetail = lazy(() => import("./pages/DistrictDetail"));
+const CampusDetail = lazy(() => import("./pages/CampusDetail"));
+const NotFound = lazy(() => import("./pages/NotFound"));
 
-const BASE =
-  (typeof window !== "undefined" && window.ENV_BACKEND_URL) ||
-  envBackend ||
-  "https://lonestarledger2-0.onrender.com"; // fallback; adjust if needed
-
-async function _json(url) {
-  const r = await fetch(url);
-  if (!r.ok) throw new Error(`HTTP ${r.status} for ${url}`);
-  return r.json();
+function ScrollToTop() {
+  const { pathname } = useLocation();
+  React.useEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: "instant" });
+  }, [pathname]);
+  return null;
 }
 
-// --- Summary / lists ---
-export const summary = () => _json(`${BASE}/summary`);
+function Fallback() {
+  return (
+    <div
+      className="spinner"
+      role="status"
+      aria-live="polite"
+      aria-busy="true"
+      style={{
+        display: "grid",
+        placeItems: "center",
+        minHeight: 160,
+        fontWeight: 600,
+        letterSpacing: "0.02em",
+      }}
+    >
+      Loading…
+    </div>
+  );
+}
 
-export const listDistricts = (limit = 50, offset = 0, q) => {
-  const qs = new URLSearchParams({ limit, offset });
-  if (q) qs.set("q", q);
-  return _json(`${BASE}/districts?${qs.toString()}`);
-};
-
-export const listSchools = (limit = 50, offset = 0, q) => {
-  const qs = new URLSearchParams({ limit, offset });
-  if (q) qs.set("q", q);
-  return _json(`${BASE}/schools?${qs.toString()}`);
-};
-
-// --- Single records ---
-export const getDistrict = (id) =>
-  _json(`${BASE}/district/${encodeURIComponent(id)}`);
-
-export const getSchool = (id) =>
-  _json(`${BASE}/school/${encodeURIComponent(id)}`);
-
-// --- Geo & lightweight points ---
-export const geoDistrictProps = () => _json(`${BASE}/geojson/districts`);
-export const campusPoints = () => _json(`${BASE}/campus_points`);
-
-// Expose base for links/debugging
-export const apiBase = BASE;
+export default function App() {
+  return (
+    <BrowserRouter>
+      <Header />
+      <ScrollToTop />
+      <ErrorBoundary>
+        <Suspense fallback={<Fallback />}>
+          <Routes>
+            <Route path="/" element={<Home />} />
+            <Route path="/district/:id" element={<DistrictDetail />} />
+            <Route path="/campus/:id" element={<CampusDetail />} />
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </Suspense>
+      </ErrorBoundary>
+    </BrowserRouter>
+  );
+}
