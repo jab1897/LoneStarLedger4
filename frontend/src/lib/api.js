@@ -1,59 +1,44 @@
-// Unified API with graceful fallbacks to public data
-const API_BASE = "/api";
+// frontend/src/lib/api.js
+// Named exports only (avoid default) to fix "default is not exported" build errors.
 
-// small helper
-async function getJSON(url) {
-  const r = await fetch(url, { credentials: "omit" });
-  if (!r.ok) throw new Error(`${url} -> ${r.status}`);
+const BASE =
+  (typeof import !== "undefined" &&
+    typeof import.meta !== "undefined" &&
+    import.meta.env &&
+    import.meta.env.VITE_BACKEND_URL) ||
+  "https://lonestarledger2-0.onrender.com"; // fallback; change if needed
+
+async function _json(url) {
+  const r = await fetch(url);
+  if (!r.ok) throw new Error(`HTTP ${r.status} for ${url}`);
   return r.json();
 }
-async function firstGood(urls) {
-  let lastErr;
-  for (const u of urls) {
-    try { return await getJSON(u); } catch(e){ lastErr = e; }
-  }
-  throw lastErr || new Error("No sources succeeded");
-}
 
-/** GeoJSON of districts with {id,name} in properties */
-export async function geoDistrictProps() {
-  return firstGood([
-    `${API_BASE}/geo/districts.props`,
-    "/data/processed/geo/districts.props.geojson"
-  ]);
-}
+// --- Summary / lists ---
+export const summary = () => _json(`${BASE}/summary`);
 
-/** GeoJSON of campus points with {id,name} in properties */
-export async function geoCampusPoints() {
-  return firstGood([
-    `${API_BASE}/geo/campuses.points`,
-    "/data/processed/geo/campuses.points.geojson"
-  ]);
-}
+export const listDistricts = (limit = 50, offset = 0, q) => {
+  const qs = new URLSearchParams({ limit, offset });
+  if (q) qs.set("q", q);
+  return _json(`${BASE}/districts?${qs.toString()}`);
+};
 
-/** Optional high-level stats for the landing snapshot */
-export async function stateSummary() {
-  return firstGood([
-    `${API_BASE}/summary/state`,
-    `${API_BASE}/stats/state`
-  ]);
-}
+export const listSchools = (limit = 50, offset = 0, q) => {
+  const qs = new URLSearchParams({ limit, offset });
+  if (q) qs.set("q", q);
+  return _json(`${BASE}/schools?${qs.toString()}`);
+};
 
-/** Lightweight search list composed from the geo fallbacks */
-export async function searchIndex() {
-  const [d, c] = await Promise.allSettled([geoDistrictProps(), geoCampusPoints()]);
-  const out = [];
-  if (d.status === "fulfilled") {
-    for (const f of d.value.features || []) {
-      const p = f.properties || {};
-      out.push({ type:"district", id: p.id ?? p.DISTRICT_ID ?? p.GEOID, name: p.name ?? p.NAME ?? "Unknown district" });
-    }
-  }
-  if (c.status === "fulfilled") {
-    for (const f of c.value.features || []) {
-      const p = f.properties || {};
-      out.push({ type:"campus", id: p.id ?? p.CAMPUS_ID, name: p.name ?? p.NAME ?? "Unknown campus", districtId: p.district_id ?? p.DISTRICT_ID });
-    }
-  }
-  return out;
-}
+// --- Single records ---
+export const getDistrict = (id) => _json(`${BASE}/district/${encodeURIComponent(id)}`);
+export const getSchool = (id) => _json(`${BASE}/school/${encodeURIComponent(id)}`);
+
+// --- Geo endpoints ---
+// Simplified districts with {district_6, name} in properties
+export const geoDistrictProps = () => _json(`${BASE}/geojson/districts`);
+
+// Lightweight campus points: [{id, campus_name, district_6, lat, lon, ...}]
+export const campusPoints = () => _json(`${BASE}/campus_points`);
+
+// expose BASE (handy for linking to API)
+export const apiBase = BASE;
