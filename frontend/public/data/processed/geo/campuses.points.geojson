@@ -1,0 +1,10 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": { "id": "TEST-CAMPUS-1", "name": "Sample HS" },
+      "geometry": { "type": "Point", "coordinates": [-100.25, 31.25] }
+    }
+  ]
+}
