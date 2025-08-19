@@ -1,22 +1,22 @@
 import React, { useEffect, useMemo, useState } from "react";
-import * as api from "../api";
+import { useNavigate } from "react-router-dom";
+import * as api from "../lib/api";
 
-export default function SearchBox() {
-  const [items, setItems] = useState([]);   // districts + campuses combined
+export default function SearchBox(){
+  const [items, setItems] = useState([]);
   const [q, setQ] = useState("");
-  const [err, setErr] = useState("");
+  const [err, setErr] = useState(null);
+  const nav = useNavigate();
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      try {
-        const campuses = await api.campusPoints().catch(() => []);
-        // If you have a district name list, load it here; otherwise just campuses
-        const combined = campuses || [];
-        if (!cancelled) setItems(combined);
-      } catch (e) {
-        console.error("SearchBox data load failed", e);
-        if (!cancelled) setErr("Search data is temporarily unavailable.");
+      try{
+        const ix = await api.searchIndex();
+        if (!cancelled) setItems(ix);
+      }catch(e){
+        console.error("Search index error:", e);
+        if (!cancelled) setErr("Search not available right now.");
       }
     })();
     return () => { cancelled = true; };
@@ -24,25 +24,46 @@ export default function SearchBox() {
 
   const filtered = useMemo(() => {
     const s = q.trim().toLowerCase();
-    if (!s) return [];
-    return items.filter(it => (it.name || it.CAMPUS || it.DISTNAME || "")
-      .toLowerCase().includes(s)).slice(0, 20);
+    if (!s) return items.slice(0, 8);
+    return items.filter(x => (x.name||"").toLowerCase().includes(s)).slice(0, 12);
   }, [q, items]);
 
+  function go(item){
+    if (!item) return;
+    if (item.type === "district"){
+      nav(`/district/${encodeURIComponent(item.id)}`);
+    } else if (item.type === "campus"){
+      const d = item.districtId ?? "unknown";
+      nav(`/district/${encodeURIComponent(d)}/campus/${encodeURIComponent(item.id)}`);
+    }
+    setQ("");
+  }
+
   return (
-    <div style={{ maxWidth: 520 }}>
+    <div className="search-wrap">
       <input
-        type="search"
-        placeholder="Search district or campus"
+        placeholder="Search district or campus…"
         value={q}
-        onChange={(e) => setQ(e.target.value)}
-        className="input"
+        onChange={e=>setQ(e.target.value)}
+        list="search-datalist"
       />
-      {err && <div className="text-muted" style={{ marginTop: 6 }}>{err}</div>}
-      {q && !filtered.length && !err && (
-        <div className="text-muted" style={{ marginTop: 6 }}>No matches.</div>
+      <datalist id="search-datalist">
+        {filtered.map((x,i)=>(
+          <option key={i} value={x.name} />
+        ))}
+      </datalist>
+      {/* click-to-go dropdown (simple) */}
+      {q && filtered.length > 0 && (
+        <div className="card" style={{position:"absolute",zIndex:500,width:520,maxWidth:"calc(100% - 40px)"}}>
+          {filtered.map((x,i)=>(
+            <div key={i} style={{padding:"6px 8px",cursor:"pointer"}} onClick={()=>go(x)}>
+              <span style={{color:"#111"}}>{x.name}</span>
+              <span style={{color:"#6b7280",marginLeft:8}}>· {x.type}</span>
+            </div>
+          ))}
+        </div>
       )}
-      {/* render suggestions dropdown here if you like */}
+      {err && <div className="alert error" style={{marginTop:8}}>{err}</div>}
     </div>
   );
 }
