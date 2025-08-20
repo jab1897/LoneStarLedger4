@@ -7,7 +7,6 @@ import ErrorBoundary from "./shell/ErrorBoundary";
 const Home = lazy(() => import("./pages/Home"));
 const DistrictDetail = lazy(() => import("./pages/DistrictDetail"));
 const CampusDetail = lazy(() => import("./pages/CampusDetail"));
-const Browse = lazy(() => import("./pages/Browse"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
 function ScrollToTop() {
@@ -47,7 +46,6 @@ export default function App() {
         <Suspense fallback={<Fallback />}>
           <Routes>
             <Route path="/" element={<Home />} />
-            <Route path="/browse" element={<Browse />} />
             <Route path="/district/:id" element={<DistrictDetail />} />
             <Route path="/campus/:id" element={<CampusDetail />} />
             <Route path="*" element={<NotFound />} />
