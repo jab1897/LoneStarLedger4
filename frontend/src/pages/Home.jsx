@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import StatsBar from "../components/StatsBar";
 import { summary, apiBase, geoDistrictProps } from "../lib/api";
+import StatsBar from "../components/StatsBar";
 
 // Map libs
 import "leaflet/dist/leaflet.css";
