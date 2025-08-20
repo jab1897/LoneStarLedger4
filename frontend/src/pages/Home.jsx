@@ -66,16 +66,13 @@ export default function Home() {
 function TexasDistrictMap({ geo }) {
   const navigate = useNavigate();
   const mapRef = useRef(null);
-  const layerRef = useRef(null);
 
   // Default statewide view for Texas
   const center = [31.0, -99.0];
   const zoom = 6;
 
-  // When geo loads, fit bounds
   useEffect(() => {
     if (!geo || !mapRef.current) return;
-    // Create bounds from the feature collection
     const gj = L.geoJSON(geo);
     const b = gj.getBounds();
     if (b.isValid()) {
@@ -97,25 +94,13 @@ function TexasDistrictMap({ geo }) {
       props.DISTRICT_N ?? props.district_n ?? props.id ?? props.DISTRICT ?? null;
 
     layer.on({
-      mouseover: () => {
-        layer.setStyle({
-          weight: 2,
-          fillOpacity: 0.35,
-        });
-        layer.getElement()?.classList.add("hovered");
-      },
-      mouseout: () => {
-        layer.setStyle(baseStyle);
-        layer.getElement()?.classList.remove("hovered");
-      },
+      mouseover: () => layer.setStyle({ weight: 2, fillOpacity: 0.35 }),
+      mouseout: () => layer.setStyle(baseStyle),
       click: () => {
-        if (id != null) {
-          navigate(`/district/${encodeURIComponent(id)}`);
-        }
+        if (id != null) navigate(`/district/${encodeURIComponent(id)}`);
       },
     });
 
-    // Simple tooltip with name and id
     const label = props.name ?? props.NAME ?? `District ${id ?? ""}`;
     layer.bindTooltip(label, { sticky: true });
   };
@@ -130,17 +115,10 @@ function TexasDistrictMap({ geo }) {
     >
       <TileLayer
         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-        // Proper attribution is required by OSM
         attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
       />
       {geo && (
-        <GeoJSON
-          key="districts"
-          data={geo}
-          style={() => baseStyle}
-          onEachFeature={onEachFeature}
-          ref={layerRef}
-        />
+        <GeoJSON key="districts" data={geo} style={() => baseStyle} onEachFeature={onEachFeature} />
       )}
     </MapContainer>
   );
