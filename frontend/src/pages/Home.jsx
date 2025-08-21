@@ -107,4 +107,24 @@ function TexasDistrictMap({ geo }) {
 
   return (
     <MapContainer
-      center=
+      center={center}
+      zoom={zoom}
+      ref={mapRef}
+      style={{ height: "100%", width: "100%", borderRadius: 12, overflow: "hidden" }}
+      attributionControl={false}
+    >
+      <TileLayer
+        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+      />
+      {geo && (
+        <GeoJSON
+          key="districts"
+          data={geo}
+          style={() => baseStyle}
+          onEachFeature={onEachFeature}
+        />
+      )}
+    </MapContainer>
+  );
+}
