@@ -11,9 +11,7 @@ const NotFound = lazy(() => import("./pages/NotFound"));
 
 function ScrollToTop() {
   const { pathname } = useLocation();
-  React.useEffect(() => {
-    window.scrollTo({ top: 0, left: 0, behavior: "instant" });
-  }, [pathname]);
+  React.useEffect(() => { window.scrollTo({ top: 0, left: 0, behavior: "instant" }); }, [pathname]);
   return null;
 }
 
@@ -29,7 +27,7 @@ function Fallback() {
         placeItems: "center",
         minHeight: 160,
         fontWeight: 600,
-        letterSpacing: "0.02em",
+        letterSpacing: "0.02em"
       }}
     >
       Loading…

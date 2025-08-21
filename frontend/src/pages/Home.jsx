@@ -1,5 +1,5 @@
 // frontend/src/pages/Home.jsx
-import { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import StatsBar from "../components/StatsBar";
 import { summary, apiBase, geoDistrictProps } from "../lib/api";
@@ -26,22 +26,17 @@ export default function Home() {
 
   useEffect(() => {
     let cancelled = false;
-    summary()
-      .then((s) => !cancelled && setStats(normalizeSummary(s)))
-      .catch((e) => !cancelled && setErr(e));
-    geoDistrictProps()
-      .then((g) => !cancelled && setDistrictGeo(g))
-      .catch(() => {});
-    return () => {
-      cancelled = true;
-    };
+    summary().then(s => !cancelled && setStats(normalizeSummary(s)))
+             .catch(e => !cancelled && setErr(e));
+    geoDistrictProps().then(g => !cancelled && setDistrictGeo(g)).catch(() => {});
+    return () => { cancelled = true; };
   }, []);
 
   return (
     <main className="container">
       <h1>Transparency ISD</h1>
       <p style={{ marginTop: 4, color: "#6b7280" }}>
-        Data source: <code>{apiBase}</code>
+        Data source: <code>{apiBase || "(same-origin /api)"}</code>
       </p>
 
       <div style={{ height: 520, marginTop: 12 }}>
@@ -74,30 +69,19 @@ function TexasDistrictMap({ geo }) {
     if (!geo || !mapRef.current) return;
     const gj = L.geoJSON(geo);
     const b = gj.getBounds();
-    if (b.isValid()) {
-      mapRef.current.fitBounds(b.pad(0.05));
-    }
+    if (b.isValid()) mapRef.current.fitBounds(b.pad(0.05));
   }, [geo]);
 
-  const baseStyle = {
-    weight: 1,
-    opacity: 1,
-    color: "#1f2937",
-    fillOpacity: 0.18,
-    fillColor: "#3b82f6",
-  };
+  const baseStyle = { weight: 1, opacity: 1, color: "#1f2937", fillOpacity: 0.18, fillColor: "#3b82f6" };
 
   const onEachFeature = (feature, layer) => {
     const props = feature?.properties || {};
-    const id =
-      props.DISTRICT_N ?? props.district_n ?? props.id ?? props.DISTRICT ?? null;
+    const id = props.DISTRICT_N ?? props.district_n ?? props.id ?? props.DISTRICT ?? null;
 
     layer.on({
       mouseover: () => layer.setStyle({ weight: 2, fillOpacity: 0.35 }),
       mouseout: () => layer.setStyle(baseStyle),
-      click: () => {
-        if (id != null) navigate(`/district/${encodeURIComponent(id)}`);
-      },
+      click: () => { if (id != null) navigate(`/district/${encodeURIComponent(id)}`); },
     });
 
     const label = props.name ?? props.NAME ?? `District ${id ?? ""}`;
@@ -116,9 +100,7 @@ function TexasDistrictMap({ geo }) {
         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
       />
-      {geo && (
-        <GeoJSON key="districts" data={geo} style={() => baseStyle} onEachFeature={onEachFeature} />
-      )}
+      {geo && <GeoJSON key="districts" data={geo} style={() => baseStyle} onEachFeature={onEachFeature} />}
     </MapContainer>
   );
 }
